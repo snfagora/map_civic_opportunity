@@ -1,0 +1,138 @@
+---
+title: "Regional variation"
+author: "Jae Yeon Kim"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+# Import pkgs 
+
+```{r}
+if (!require(pacman)) install.packages("pacman")
+
+pacman::p_load(
+  tidyverse,
+  glue,
+  here,
+  purrr,
+  estimatr,
+  effectsize,
+  patchwork
+)
+
+options(es.use_symbols = TRUE) # get nice symbols
+
+source(here("functions", "utils.R"))
+
+theme_set(custom_theme())
+```
+
+# Import data 
+
+```{r}
+fips <- read_csv(here("raw_data", "fips_with_population.csv"), col_types = (ZCTA <- "c"))
+
+zcta <- read_csv(here("raw_data", "zcta_cnts.csv"), col_types = (ZCTA <- "c"))
+
+census_detail <- read_csv(here("raw_data", "census_zcta_detail_data.csv"), col_types = (GEOID <- "c"))
+
+census_subject <- read_csv(here("raw_data", "census_zcta_subject_data.csv"), col_types = (GEOID <- "c"))
+
+county_class <- read_csv(here("raw_data", "County_Classifications.csv"))
+names(county_class)[1] <- "FIPS"
+```
+
+# Wrangle data 
+
+```{r}
+# census meta data
+census <- census_detail %>%
+  inner_join(census_subject) %>%
+  rename(ZCTA = GEOID) %>%
+  mutate(race_per_white_nonhispanic = race_white_nonhispanic / population_total) %>%
+  mutate(college_educ = (education_attainment_some_col + education_attainment_bs + education_attainment_grad) / education_attainment_total) %>%
+  mutate(per_poverty = 1 - poverty_gt_150 / poverty_total) %>%
+  select(ZCTA, population_total, race_per_white_nonhispanic, per_poverty, college_educ)
+
+# county classification
+county_class <- county_class %>%
+  mutate(urban_suburban_rural = case_when(
+    RuralUrbanContinuumCode2013 %in% c(1, 2, 3) ~ "Urban",
+    RuralUrbanContinuumCode2013 %in% c(4, 5, 6) ~ "Suburban",
+    RuralUrbanContinuumCode2013 %in% c(7, 8, 9) ~ "Rural",
+    is.na(RuralUrbanContinuumCode2013) ~ NA
+  ))
+
+dd <- fips %>%
+  left_join(zcta) %>%
+  left_join(census) %>%
+  left_join(county_class)
+
+dd <- dd %>%
+  mutate(opc = 1000 * eng / population_total) %>%
+  mutate(opc_tier = ntile(opc, 5))
+
+dd %>%
+  group_by(urban_suburban_rural) %>%
+  count()
+```
+
+```{r}
+# top100_fips <- dd %>%
+# group_by(urban_suburban_rural) %>%
+# slice_max(order_by = TotalPopEst2019, n = 50) %>%
+# pull(FIPS)
+
+# dd <- dd %>%
+# mutate(top50 = ifelse(FIPS %in% top50_fips, "Top 50", "Others"))
+```
+
+# Visualize data 
+
+```{r}
+dd %>%
+  ungroup() %>%
+  group_by(urban_suburban_rural) %>%
+  # top50) %>%
+  do(tidy(standardize(lm_robust(formula = opc_tier ~ race_per_white_nonhispanic + per_poverty + college_educ, data = ., weights = TotalPopEst2019)))) %>%
+  filter(!str_detect(term, "(Intercept)")) %>%
+  ggplot(aes(
+    x = term, y = estimate, ymax = conf.high, ymin = conf.low,
+    col = urban_suburban_rural
+  )) +
+  geom_pointrange() +
+  geom_hline(yintercept = 0, linetype = "dashed", col = "red") +
+  coord_flip() +
+  labs(
+    x = "", y = "Estimated regression coefficient",
+    col = "County classification"
+  ) # +
+# facet_wrap(~top50)
+
+ggsave(here("outputs", "demo_opc_tier.png"))
+```
+
+```{r}
+outs <- map_dfr(seq(0.1, 0.9, by = 0.01), cut_pop)
+```
+
+```{r}
+outs %>%
+  ggplot(aes(
+    x = top_n, y = estimate, ymax = conf.high, ymin = conf.low,
+    fill = urban_suburban_rural
+  )) +
+  geom_line() +
+  geom_ribbon(alpha = 0.3) +
+  geom_hline(yintercept = 0, linetype = "dashed", col = "red") +
+  facet_wrap(~term) +
+  labs(
+    x = "Top n% zip codes by the 2019 estimated pop size",
+    y = "Estimated regression coefficient",
+    fill = "County classification"
+  )
+
+ggsave(here("outputs", "demo_opc_tier_n_threshold.png"),
+  width = 10
+)
+```
