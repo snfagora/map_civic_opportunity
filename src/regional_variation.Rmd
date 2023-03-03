@@ -158,24 +158,27 @@ corr_sum <- dd %>%
     poverty = mean(per_poverty, na.rm = T),
     educ = mean(college_educ, na.rm = T),
     foreign_born = mean(foreign_born_pct, na.rm = T)
-  )
+  ) 
 ```
 
 ```{r}
-between_counties_plot <- corr_sum %>%
-  pivot_longer(cols = c("white", "poverty", "educ", "foreign_born")) %>%
-  ggplot(aes(x = value, y = opct, col = urban_suburban_rural)) +
-  geom_jitter(alpha = 0.02) +
-  geom_smooth(method = "rlm") +
-  facet_wrap(~name) +
-  labs(
-    x = "",
-    y = "Civic opportunity per capita",
-    col = "Census urban-rural classification",
-    title = "Between counties",
-    subtitle = "Aggregated zip code obs (mean) at the county level"
-  ) +
-  scale_color_viridis_d(option = "rocket", begin = 0.2, end = 0.8)
+corr_mod <- corr_sum %>%
+  do(tidy(standardize(lm_robust(formula = opct ~ white + poverty + educ + foreign_born, data = .))))
+```
+
+```{r}
+between_counties_plot <- corr_mod %>%
+  filter(!str_detect(term, "(Intercept)")) %>%
+  ggplot(aes(x = urban_suburban_rural)) +
+  geom_col(aes(y = estimate, fill = term), position = "dodge") +
+  geom_errorbar(aes(ymax = conf.high, ymin = conf.low, fill = term), position = "dodge") +  
+  geom_hline(yintercept = 0, linetype = "dashed", col = "red") +
+  labs(x = "",
+       y = "Estimated coefficient",
+       title = "Between counties",
+       subtitle = "Aggregated zip code obs (mean) at the county level",
+       fill = "Type") +
+  scale_fill_viridis_d(option = "rocket", begin = 0.2, end = 0.8)
 
 between_counties_plot 
 
@@ -233,10 +236,11 @@ within_counties_plot <- dd_lm_mean %>%
   filter(!str_detect(term, "(Intercept)")) %>%
   ggplot(aes(x = term)) +
   geom_pointrange(aes(y = y, ymax = ymax, ymin = ymin)) +
-  geom_jitter(aes(y = estimate), alpha = 0.2) + 
+  geom_jitter(aes(y = estimate), alpha = 0.2, shape = 21) + 
   geom_hline(yintercept = 0, linetype = "dashed", col = "red") +
   coord_flip() +
-  labs(title = glue("50% of top zip codes by \n the 2019 population from urban areas"),
+  labs(title = "Within counties (urban areas)",
+       subtitle = glue("50% of top zip codes by \n the 2019 population from urban areas"),
        x = "",
        y = "Average estimated coefficient")
 
@@ -249,4 +253,10 @@ ggsave(here("outputs", "within_counties.png"))
 region_plot + within_counties_plot + plot_annotation(tag_level = "A")
 
 ggsave(here("outputs", "county_desc.png"), height = 8, width = 15)
+```
+
+```{r}
+between_counties_plot + within_counties_plot + plot_annotation(tag_level = "A")
+
+ggsave(here("outputs", "county_desc_unit_diff.png"), height = 8, width = 15)
 ```

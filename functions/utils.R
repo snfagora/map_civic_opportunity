@@ -11,7 +11,7 @@ custom_theme <- function() {
       plot.title = element_text(size = 12),
       plot.subtitle = element_text(size = 10),
       plot.caption = element_text(colour = "grey50", hjust = 0),
-      legend.position = "bottom"
+      legend.position = "right"
     )
   
 }
