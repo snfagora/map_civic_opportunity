@@ -17,7 +17,8 @@ pacman::p_load(
   purrr,
   estimatr,
   effectsize,
-  patchwork
+  patchwork,
+  tidycensus
 )
 
 options(es.use_symbols = TRUE) # get nice symbols
@@ -27,7 +28,7 @@ source(here("functions", "utils.R"))
 theme_set(custom_theme())
 ```
 
-# Import data 
+# Import data (from local sources)
 
 ```{r}
 fips <- read_csv(here("raw_data", "fips_with_population.csv"), col_types = (ZCTA <- "c"))
@@ -61,78 +62,191 @@ county_class <- county_class %>%
     RuralUrbanContinuumCode2013 %in% c(4, 5, 6) ~ "Suburban",
     RuralUrbanContinuumCode2013 %in% c(7, 8, 9) ~ "Rural",
     is.na(RuralUrbanContinuumCode2013) ~ NA
-  ))
+  )) %>%
+  mutate(urban_suburban_rural = factor(urban_suburban_rural, levels = c("Urban", "Suburban", "Rural", NA)))
+```
 
+```{r}
+# census_api_key(key = "69df6af664132347b84276a365ce76d4c16cf336")
+
+# var20 <- load_variables(2020, "acs5", cache = TRUE)
+
+get_acs_zcta <- function(zcta_vec) {
+  census_api_data <- get_acs(
+    geography = "zcta",
+    variables = c(
+      "B05002_001", # total #
+      "B05002_013"
+    ), # foreign born #
+    geometry = FALSE,
+    output = "wide",
+    zcta = zcta_vec,
+    year = 2020
+  )
+}
+
+# census_api_data <- map_dfr(census$ZCTA, get_acs_zcta)
+
+# write_csv(census_api_data, here("raw_data", "census_api_data.csv"))
+
+census_api_data <- read_csv(here("raw_data", "census_api_data.csv"))
+
+census_foreign <- census_api_data %>%
+  mutate(foreign_born_pct = B05002_013E / B05002_001E) %>%
+  select(GEOID, foreign_born_pct) %>%
+  rename(ZCTA = GEOID)
+
+mean(is.na(census_foreign$foreign_born_pct))
+```
+
+```{r}
 dd <- fips %>%
   left_join(zcta) %>%
   left_join(census) %>%
-  left_join(county_class)
+  left_join(county_class) %>%
+  left_join(census_foreign)
 
 dd <- dd %>%
   mutate(opc = 1000 * eng / population_total) %>%
   mutate(opc_tier = ntile(opc, 5))
 
-dd %>%
-  group_by(urban_suburban_rural) %>%
-  count()
+county_n <- length(unique(dd$FIPS))
+
+sum_county_zip <- dd %>%
+  group_by(FIPS, urban_suburban_rural) %>%
+  summarize(n = n()) %>%
+  mutate(freq = n / county_n)
+
+sum_county_zip %>%
+  ggplot(aes(x = n, fill = urban_suburban_rural)) +
+  geom_density(alpha = 0.3) +
+  labs(y = "Count",
+       x = "The # of zip codes in a county",
+       fill = "Census urban-rural classification") 
+
+ggsave(here("outputs", "zip_county_n.png"))
+
+max(sum_county_zip$n) # 360 zip codes in a county (LA county)
+
+min(sum_county_zip$n) # 1 zip code in a county 
 ```
 
-```{r}
-# top100_fips <- dd %>%
-# group_by(urban_suburban_rural) %>%
-# slice_max(order_by = TotalPopEst2019, n = 50) %>%
-# pull(FIPS)
+# Summarize data 
 
-# dd <- dd %>%
-# mutate(top50 = ifelse(FIPS %in% top50_fips, "Top 50", "Others"))
+```{r}
+dd %>%
+  filter(!is.na(opc_tier)) %>%
+  group_by(opc_tier, urban_suburban_rural) %>%
+  summarize(
+    white = mean(race_per_white_nonhispanic, na.rm = T),
+    poverty = mean(per_poverty, na.rm = T),
+    educ = mean(college_educ, na.rm = T),
+    foreign = mean(foreign_born_pct, na.rm = T)
+  )
 ```
 
 # Visualize data 
 
 ```{r}
-dd %>%
+library(MASS)
+
+corr_sum <- dd %>%
+  group_by(urban_suburban_rural, FIPS) %>%
+  summarize(
+    opct = mean(opc_tier, na.rm = T),
+    white = mean(race_per_white_nonhispanic, na.rm = T),
+    poverty = mean(per_poverty, na.rm = T),
+    educ = mean(college_educ, na.rm = T),
+    foreign_born = mean(foreign_born_pct, na.rm = T)
+  )
+```
+
+```{r}
+between_counties_plot <- corr_sum %>%
+  pivot_longer(cols = c("white", "poverty", "educ", "foreign_born")) %>%
+  ggplot(aes(x = value, y = opct, col = urban_suburban_rural)) +
+  geom_jitter(alpha = 0.02) +
+  geom_smooth(method = "rlm") +
+  facet_wrap(~name) +
+  labs(
+    x = "",
+    y = "Civic opportunity per capita",
+    col = "Census urban-rural classification",
+    title = "Between counties",
+    subtitle = "Aggregated zip code obs (mean) at the county level"
+  ) +
+  scale_color_viridis_d(option = "rocket", begin = 0.2, end = 0.8)
+
+between_counties_plot 
+
+ggsave(here("outputs", "btw_counties.png"), width = 8, height = 8)
+```
+
+```{r}
+dd_opc <- dd %>%
+  filter(!is.na(opc_tier)) %>%
+  pivot_longer(cols = c("race_per_white_nonhispanic", "per_poverty", "college_educ", "foreign_born_pct"),
+               names_to = "name",
+               values_to = "value")
+
+dd_opc_sum <- dd_opc %>%
+  group_by(urban_suburban_rural, opc_tier, name) %>%
+  summarize(ggplot2::mean_cl_boot(value)) 
+  
+region_plot <- dd_opc_sum %>%
+  left_join(dd_opc) %>%
+  ggplot(aes(x = opc_tier)) +
+  geom_line(method = "lm", aes(y = y, fill = urban_suburban_rural)) +
+  geom_ribbon(aes(ymax = ymax, ymin = ymin, fill = urban_suburban_rural)) +
+  geom_jitter(aes(y = value, col = urban_suburban_rural), alpha = 0.01) +
+  facet_wrap(~name) +
+  labs(title = "Pooled data",
+       y = "Pct (%)", 
+       x = "Civic opportunity index", 
+       fill = "Census classification",
+       col = "Census classification")
+```
+
+```{r}
+dd <- dd %>%
+  left_join(sum_county_zip %>%
+  rename(zip_n = n) %>%
+  dplyr::select(FIPS, zip_n))
+```
+
+```{r}
+dd_lm <- dd %>%
+  filter(urban_suburban_rural == "Urban") %>%
+  slice_max(order_by = TotalPopEst2019, prop = 0.50) %>%
+  group_by(FIPS) %>% 
+  do(tidy(standardize(lm_robust(formula = opc_tier ~ race_per_white_nonhispanic + per_poverty + college_educ + foreign_born_pct, data = .))))
+
+dd_lm_mean <- dd_lm %>%
   ungroup() %>%
-  group_by(urban_suburban_rural) %>%
-  # top50) %>%
-  do(tidy(standardize(lm_robust(formula = opc_tier ~ race_per_white_nonhispanic + per_poverty + college_educ, data = ., weights = TotalPopEst2019)))) %>%
+  group_by(term) %>%
+  summarize(ggplot2::mean_cl_boot(estimate)) 
+```
+
+```{r}
+within_counties_plot <- dd_lm_mean %>%
+  left_join(dd_lm) %>%
   filter(!str_detect(term, "(Intercept)")) %>%
-  ggplot(aes(
-    x = term, y = estimate, ymax = conf.high, ymin = conf.low,
-    col = urban_suburban_rural
-  )) +
-  geom_pointrange() +
+  ggplot(aes(x = term)) +
+  geom_pointrange(aes(y = y, ymax = ymax, ymin = ymin)) +
+  geom_jitter(aes(y = estimate), alpha = 0.2) + 
   geom_hline(yintercept = 0, linetype = "dashed", col = "red") +
   coord_flip() +
-  labs(
-    x = "", y = "Estimated regression coefficient",
-    col = "County classification"
-  ) # +
-# facet_wrap(~top50)
+  labs(title = glue("50% of top zip codes by \n the 2019 population from urban areas"),
+       x = "",
+       y = "Average estimated coefficient")
 
-ggsave(here("outputs", "demo_opc_tier.png"))
+within_counties_plot
+
+ggsave(here("outputs", "within_counties.png"))
 ```
 
 ```{r}
-outs <- map_dfr(seq(0.1, 0.9, by = 0.01), cut_pop)
-```
+region_plot + within_counties_plot + plot_annotation(tag_level = "A")
 
-```{r}
-outs %>%
-  ggplot(aes(
-    x = top_n, y = estimate, ymax = conf.high, ymin = conf.low,
-    fill = urban_suburban_rural
-  )) +
-  geom_line() +
-  geom_ribbon(alpha = 0.3) +
-  geom_hline(yintercept = 0, linetype = "dashed", col = "red") +
-  facet_wrap(~term) +
-  labs(
-    x = "Top n% zip codes by the 2019 estimated pop size",
-    y = "Estimated regression coefficient",
-    fill = "County classification"
-  )
-
-ggsave(here("outputs", "demo_opc_tier_n_threshold.png"),
-  width = 10
-)
+ggsave(here("outputs", "county_desc.png"), height = 8, width = 15)
 ```

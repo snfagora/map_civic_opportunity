@@ -10,7 +10,8 @@ custom_theme <- function() {
       axis.text.x = element_text(margin = margin(t = 6)),
       plot.title = element_text(size = 12),
       plot.subtitle = element_text(size = 10),
-      plot.caption = element_text(colour = "grey50", hjust = 0)
+      plot.caption = element_text(colour = "grey50", hjust = 0),
+      legend.position = "bottom"
     )
   
 }
@@ -31,7 +32,7 @@ cut_pop <- function(n_top) {
     ungroup() %>%
     group_by(urban_suburban_rural) %>% 
     #top50) %>%
-    do(tidy(standardize(lm_robust(formula = opc_tier ~ race_per_white_nonhispanic + per_poverty + college_educ, data = ., weights = TotalPopEst2019)))) %>% 
+    do(tidy(standardize(lm_robust(formula = opc_tier ~ race_per_white_nonhispanic + per_poverty + college_educ + foreign_born_pct, data = ., weights = TotalPopEst2019)))) %>% 
     filter(!str_detect(term, "(Intercept)")) %>%
     mutate(top_n = n_top)
   
