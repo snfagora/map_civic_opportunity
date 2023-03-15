@@ -1,4 +1,4 @@
----
+$)C---
 title: "Regional variation"
 author: "Jae Yeon Kim"
 date: "`r Sys.Date()`"
@@ -23,7 +23,7 @@ pacman::p_load(
 
 options(es.use_symbols = TRUE) # get nice symbols
 
-source(here("functions", "utils.R"))
+source(here("functions", "utils.r"))
 
 theme_set(custom_theme())
 ```
@@ -40,6 +40,9 @@ census_detail <- read_csv(here("raw_data", "census_zcta_detail_data.csv"), col_t
 census_subject <- read_csv(here("raw_data", "census_zcta_subject_data.csv"), col_types = (GEOID <- "c"))
 
 county_class <- read_csv(here("raw_data", "County_Classifications.csv"))
+
+county_mutual <- read_csv(here("raw_data", "reproduction_data_mutual_aid_hubs_county.csv"))
+
 names(county_class)[1] <- "FIPS"
 ```
 
@@ -53,7 +56,7 @@ census <- census_detail %>%
   mutate(race_per_white_nonhispanic = race_white_nonhispanic / population_total) %>%
   mutate(college_educ = (education_attainment_some_col + education_attainment_bs + education_attainment_grad) / education_attainment_total) %>%
   mutate(per_poverty = 1 - poverty_gt_150 / poverty_total) %>%
-  select(ZCTA, population_total, race_per_white_nonhispanic, per_poverty, college_educ)
+  dplyr::select(ZCTA, population_total, race_per_white_nonhispanic, per_poverty, college_educ)
 
 # county classification
 county_class <- county_class %>%
@@ -89,27 +92,29 @@ get_acs_zcta <- function(zcta_vec) {
 
 # write_csv(census_api_data, here("raw_data", "census_api_data.csv"))
 
-census_api_data <- read_csv(here("raw_data", "census_api_data.csv"))
+# census_api_data <- read_csv(here("raw_data", "census_api_data.csv"))
 
-census_foreign <- census_api_data %>%
-  mutate(foreign_born_pct = B05002_013E / B05002_001E) %>%
-  select(GEOID, foreign_born_pct) %>%
-  rename(ZCTA = GEOID)
+# census_foreign <- census_api_data %>%
+# mutate(foreign_born_pct = B05002_013E / B05002_001E) %>%
+#  select(GEOID, foreign_born_pct) %>%
+#  rename(ZCTA = GEOID)
 
-mean(is.na(census_foreign$foreign_born_pct))
+# mean(is.na(census_foreign$foreign_born_pct))
 ```
 
 ```{r}
 dd <- fips %>%
   left_join(zcta) %>%
   left_join(census) %>%
-  left_join(county_class) %>%
-  left_join(census_foreign)
+  left_join(county_class)
 
 dd <- dd %>%
   mutate(opc = 1000 * eng / population_total) %>%
-  mutate(opc_tier = ntile(opc, 5))
+  mutate(opc_tier = ntile(opc, 5)) %>%
+  mutate(all_org = 1000 * all.orgs / population_total)
+```
 
+```{r}
 county_n <- length(unique(dd$FIPS))
 
 sum_county_zip <- dd %>%
@@ -120,15 +125,17 @@ sum_county_zip <- dd %>%
 sum_county_zip %>%
   ggplot(aes(x = n, fill = urban_suburban_rural)) +
   geom_density(alpha = 0.3) +
-  labs(y = "Count",
-       x = "The # of zip codes in a county",
-       fill = "Census urban-rural classification") 
+  labs(
+    y = "Count",
+    x = "The # of zip codes in a county",
+    fill = "Census urban-rural classification"
+  )
 
 ggsave(here("outputs", "zip_county_n.png"))
 
 max(sum_county_zip$n) # 360 zip codes in a county (LA county)
 
-min(sum_county_zip$n) # 1 zip code in a county 
+min(sum_county_zip$n) # 1 zip code in a county
 ```
 
 # Summarize data 
@@ -140,8 +147,7 @@ dd %>%
   summarize(
     white = mean(race_per_white_nonhispanic, na.rm = T),
     poverty = mean(per_poverty, na.rm = T),
-    educ = mean(college_educ, na.rm = T),
-    foreign = mean(foreign_born_pct, na.rm = T)
+    educ = mean(college_educ, na.rm = T)
   )
 ```
 
@@ -154,48 +160,66 @@ corr_sum <- dd %>%
   group_by(urban_suburban_rural, FIPS) %>%
   summarize(
     opct = mean(opc_tier, na.rm = T),
+    orgt = mean(all_org, na.rm = T),
     white = mean(race_per_white_nonhispanic, na.rm = T),
     poverty = mean(per_poverty, na.rm = T),
-    educ = mean(college_educ, na.rm = T),
-    foreign_born = mean(foreign_born_pct, na.rm = T)
-  ) 
+    educ = mean(college_educ, na.rm = T)
+  )
 ```
 
 ```{r}
 corr_mod <- corr_sum %>%
-  do(tidy(standardize(lm_robust(formula = opct ~ white + poverty + educ + foreign_born, data = .))))
+  do(tidy(standardize(lm_robust(formula = opct ~ white + poverty + educ, data = .))))
+
+corr_mod_rc <- corr_sum %>%
+  do(tidy(standardize(lm_robust(formula = orgt ~ white + poverty + educ, data = .))))
+
+corr_mod_bind <- bind_rows(
+  mutate(corr_mod, DV = "Civic opportunity index"),
+  mutate(corr_mod_rc, DV = "Org density index")
+)
 ```
 
 ```{r}
-between_counties_plot <- corr_mod %>%
+between_counties_plot <- corr_mod_bind %>%
+  mutate(term = recode(term,
+    "white" = "Non-hispanic white",
+    "poverty" = "Federal poverty level",
+    "educ" = "Colleged educated"
+  )) %>%
   filter(!str_detect(term, "(Intercept)")) %>%
   ggplot(aes(x = urban_suburban_rural)) +
-  geom_col(aes(y = estimate, fill = term), position = "dodge") +
-  geom_errorbar(aes(ymax = conf.high, ymin = conf.low, fill = term), position = "dodge") +  
+  geom_col(aes(y = estimate, fill = DV), position = "dodge", alpha = 0.8) +
+  geom_errorbar(aes(ymax = conf.high, ymin = conf.low, fill = DV), position = "dodge") +
   geom_hline(yintercept = 0, linetype = "dashed", col = "red") +
-  labs(x = "",
-       y = "Estimated coefficient",
-       title = "Between counties",
-       subtitle = "Aggregated zip code obs (mean) at the county level",
-       fill = "Type") +
-  scale_fill_viridis_d(option = "rocket", begin = 0.2, end = 0.8)
+  labs(
+    x = "",
+    y = "Estimated coefficient",
+    title = "Between counties",
+    subtitle = "Aggregated zip code-level observations by county",
+    fill = "Type"
+  ) +
+  scale_fill_viridis_d(option = "rocket", begin = 0.2, end = 0.8) +
+  facet_wrap(~term, ncol = 2)
 
-between_counties_plot 
+between_counties_plot
 
-ggsave(here("outputs", "btw_counties.png"), width = 8, height = 8)
+ggsave(here("outputs", "btw_counties.eps"), width = 8, height = 8)
 ```
 
 ```{r}
 dd_opc <- dd %>%
   filter(!is.na(opc_tier)) %>%
-  pivot_longer(cols = c("race_per_white_nonhispanic", "per_poverty", "college_educ", "foreign_born_pct"),
-               names_to = "name",
-               values_to = "value")
+  pivot_longer(
+    cols = c("race_per_white_nonhispanic", "per_poverty", "college_educ"),
+    names_to = "name",
+    values_to = "value"
+  )
 
 dd_opc_sum <- dd_opc %>%
   group_by(urban_suburban_rural, opc_tier, name) %>%
-  summarize(ggplot2::mean_cl_boot(value)) 
-  
+  summarize(ggplot2::mean_cl_boot(value))
+
 region_plot <- dd_opc_sum %>%
   left_join(dd_opc) %>%
   ggplot(aes(x = opc_tier)) +
@@ -203,46 +227,81 @@ region_plot <- dd_opc_sum %>%
   geom_ribbon(aes(ymax = ymax, ymin = ymin, fill = urban_suburban_rural)) +
   geom_jitter(aes(y = value, col = urban_suburban_rural), alpha = 0.01) +
   facet_wrap(~name) +
-  labs(title = "Pooled data",
-       y = "Pct (%)", 
-       x = "Civic opportunity index", 
-       fill = "Census classification",
-       col = "Census classification")
+  labs(
+    title = "Pooled data",
+    y = "Pct (%)",
+    x = "Civic opportunity index",
+    fill = "Census classification",
+    col = "Census classification"
+  )
 ```
 
 ```{r}
 dd <- dd %>%
   left_join(sum_county_zip %>%
-  rename(zip_n = n) %>%
-  dplyr::select(FIPS, zip_n))
+    rename(zip_n = n) %>%
+    dplyr::select(FIPS, zip_n))
 ```
 
 ```{r}
 dd_lm <- dd %>%
   filter(urban_suburban_rural == "Urban") %>%
   slice_max(order_by = TotalPopEst2019, prop = 0.50) %>%
-  group_by(FIPS) %>% 
-  do(tidy(standardize(lm_robust(formula = opc_tier ~ race_per_white_nonhispanic + per_poverty + college_educ + foreign_born_pct, data = .))))
+  group_by(FIPS) %>%
+  do(tidy(standardize(lm_robust(formula = opc_tier ~ race_per_white_nonhispanic + per_poverty + college_educ, data = .))))
+
+dd_lm_rc <- dd %>%
+  filter(urban_suburban_rural == "Urban") %>%
+  slice_max(order_by = TotalPopEst2019, prop = 0.50) %>%
+  group_by(FIPS) %>%
+  do(tidy(standardize(lm_robust(formula = all_org ~ race_per_white_nonhispanic + per_poverty + college_educ, data = .))))
 
 dd_lm_mean <- dd_lm %>%
   ungroup() %>%
   group_by(term) %>%
-  summarize(ggplot2::mean_cl_boot(estimate)) 
+  summarize(ggplot2::mean_cl_boot(estimate))
+
+dd_lm_rc <- dd %>%
+  filter(urban_suburban_rural == "Urban") %>%
+  slice_max(order_by = TotalPopEst2019, prop = 0.50) %>%
+  group_by(FIPS) %>%
+  do(tidy(standardize(lm_robust(formula = all_org ~ race_per_white_nonhispanic + per_poverty + college_educ, data = .))))
+
+dd_lm_rc_mean <- dd_lm_rc %>%
+  ungroup() %>%
+  group_by(term) %>%
+  summarize(ggplot2::mean_cl_boot(estimate))
 ```
 
 ```{r}
-within_counties_plot <- dd_lm_mean %>%
-  left_join(dd_lm) %>%
+dd_lm_bind <- bind_rows(
+  mutate(dd_lm_mean, Type = "Civic opportunity index"),
+  mutate(dd_lm_rc_mean, Type = "Org density index")
+  )
+```
+
+```{r}
+within_counties_plot <- dd_lm_bind %>%
   filter(!str_detect(term, "(Intercept)")) %>%
+  mutate(term = recode(term,
+    "race_per_white_nonhispanic" = "Non-hispanic white",
+    "per_poverty" = "Federal poverty level",
+    "college_educ" = "Colleged educated"
+  )) %>%
+  mutate(term = str_wrap(term, width = 10)) %>%
   ggplot(aes(x = term)) +
-  geom_pointrange(aes(y = y, ymax = ymax, ymin = ymin)) +
-  geom_jitter(aes(y = estimate), alpha = 0.2, shape = 21) + 
+  geom_col(aes(y = y, fill = Type), position = "dodge", alpha = 0.8) +
+  geom_errorbar(aes(ymax = ymax, ymin = ymin, fill = Type), position = "dodge") +
+#  geom_jitter(aes(y = estimate, col = Type), alpha = 0.2) +
   geom_hline(yintercept = 0, linetype = "dashed", col = "red") +
-  coord_flip() +
-  labs(title = "Within counties (urban areas)",
-       subtitle = glue("50% of top zip codes by \n the 2019 population from urban areas"),
-       x = "",
-       y = "Average estimated coefficient")
+#  coord_flip() +
+  labs(
+    title = "Within counties (urban areas)",
+    subtitle = glue("50% of top zip codes by \n the 2019 population from urban areas"),
+    x = "",
+    y = "Average estimated coefficient"
+  ) +
+  scale_fill_viridis_d(option = "rocket", begin = 0.2, end = 0.8)
 
 within_counties_plot
 
@@ -258,5 +317,5 @@ ggsave(here("outputs", "county_desc.png"), height = 8, width = 15)
 ```{r}
 between_counties_plot + within_counties_plot + plot_annotation(tag_level = "A")
 
-ggsave(here("outputs", "county_desc_unit_diff.png"), height = 8, width = 15)
+ggsave(here("outputs", "county_desc_unit_diff.png"), height = 8, width = 10)
 ```
