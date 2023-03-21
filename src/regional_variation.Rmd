@@ -41,7 +41,7 @@ custom_theme <- function(size = 13) {
       plot.subtitle = element_text(size = 10),
       plot.caption = element_text(colour = "grey50", hjust = 0),
       legend.position = "bottom"
-    ) 
+    )
 }
 
 ggplot2::theme_set(custom_theme())
@@ -76,7 +76,7 @@ civic opps = if an org does any of the following: offering volunteer opportuniti
 ```{r}
 org_activites_mbf <- org_activites %>% left_join(mbf %>% dplyr::select(ein, state, city, zip))
 
-# the first 5 digits 
+# the first 5 digits
 org_activites_mbf$ZCTA <- substr(org_activites_mbf$zip, 1, 5)
 
 org_activites_mbf <- org_activites_mbf %>%
@@ -85,23 +85,28 @@ org_activites_mbf <- org_activites_mbf %>%
   filter(!is.na(take_action)) %>%
   filter(!is.na(events)) %>%
   mutate(opp_binary = ifelse(volunteer == 1 | membership == 1 | take_action == 1 | events == 1, 1, 0)) %>%
-  mutate(opp_mean = idx_mean(volunteer, membership, take_action, events),
-         opp_invcov = idx_invcov(volunteer, membership, take_action, events))
+  mutate(
+    opp_mean = idx_mean(volunteer, membership, take_action, events),
+    opp_invcov = idx_invcov(volunteer, membership, take_action, events)
+  )
 
 org_sums <- org_activites_mbf %>%
   group_by(ZCTA) %>%
-  summarize(vol_sum = sum(volunteer, na.rm = T),
-            mem_sum = sum(membership, na.rm = T),
-            action_sum = sum(take_action, na.rm = T),
-            event_sum = sum(events, na.rm = T),
-            opp_binary_sum = sum(opp_binary, na.rm = T),
-            opp_mean_sum = sum(opp_mean, na.rm = T), 
-            opp_invcov_sum = sum(opp_invcov, na.rm = T)) 
+  summarize(
+    vol_sum = sum(volunteer, na.rm = T),
+    mem_sum = sum(membership, na.rm = T),
+    action_sum = sum(take_action, na.rm = T),
+    event_sum = sum(events, na.rm = T),
+    opp_binary_sum = sum(opp_binary, na.rm = T),
+    opp_mean_sum = sum(opp_mean, na.rm = T),
+    opp_invcov_sum = sum(opp_invcov, na.rm = T)
+  )
 
-png(file = here("outputs", "civic_opportunity_index.png"),     
-  width     = 3.25,
-  height    = 3.25,
-  units     = "in",
+png(
+  file = here("outputs", "civic_opportunity_index.png"),
+  width = 3.25,
+  height = 3.25,
+  units = "in",
   res = 600,
   pointsize = 4
 )
@@ -115,12 +120,13 @@ par(
 )
 
 cor(org_sums %>% dplyr::select(matches("_sum"))) %>%
-  corrplot(tl.col = "black",
-           method = "number")
+  corrplot(
+    tl.col = "black",
+    method = "number"
+  )
 
 dev.off()
 ```
-
 # Wrangle data 
 
 ```{r}
@@ -181,11 +187,12 @@ county_class <- county_class %>%
 dd <- fips %>%
   left_join(zcta) %>%
   left_join(census) %>%
-  left_join(county_class)
+  left_join(county_class) %>%
+  left_join(org_sums)
 
 dd <- dd %>%
   filter(!is.na(population_total)) %>%
-  mutate(opc = 1000 * eng / population_total) %>%
+  mutate(opc = 1000 * opp_invcov_sum / population_total) %>%
   mutate(opc_tier = ntile(opc, 5)) %>%
   mutate(all_org = 1000 * all.orgs / population_total) %>%
   mutate(org_tier = ntile(all_org, 5))
@@ -210,7 +217,7 @@ sum_county_zip %>%
 
 ggsave(here("outputs", "zip_county_n.png"))
 
-max(sum_county_zip$n) # 360 zip codes in a county (LA county)
+max(sum_county_zip$n) # 290 zip codes in a county (LA county)
 
 min(sum_county_zip$n) # 1 zip code in a county
 ```
@@ -305,7 +312,7 @@ dd_lm_rc_mean <- dd_lm_rc %>%
 dd_lm_bind <- bind_rows(
   mutate(dd_lm_mean, Type = "Civic opportunity index"),
   mutate(dd_lm_rc_mean, Type = "Organizational density")
-  )
+)
 ```
 
 ```{r}
@@ -320,9 +327,9 @@ within_counties_plot <- dd_lm_bind %>%
   ggplot(aes(x = term)) +
   geom_col(aes(y = y, fill = Type), position = "dodge", alpha = 0.8) +
   geom_errorbar(aes(ymax = ymax, ymin = ymin, fill = Type), position = "dodge") +
-#  geom_jitter(aes(y = estimate, col = Type), alpha = 0.2) +
+  #  geom_jitter(aes(y = estimate, col = Type), alpha = 0.2) +
   geom_hline(yintercept = 0, linetype = "dashed", col = "red") +
-#  coord_flip() +
+  #  coord_flip() +
   labs(
     title = "Within urban counties",
     subtitle = glue("50% of top zip codes by \n the 2019 population from urban counties"),
@@ -348,63 +355,63 @@ ggsave(here("outputs", "county_desc_unit_diff.png"), height = 8, width = 10)
 ```
 
 ```{r}
-dd_opc <- dd %>%
-  filter(!is.na(opc_tier)) %>%
-  pivot_longer(
-    cols = c("race_per_white_nonhispanic", "per_poverty", "college_educ"),
-    names_to = "name",
-    values_to = "value"
-  )
-
-dd_opc_sum <- dd_opc %>%
-  group_by(urban_suburban_rural, opc_tier, name) %>%
-  summarize(ggplot2::mean_cl_boot(value))
-
-opc_region_plot <- dd_opc_sum %>%
-  left_join(dd_opc) %>%
-  ggplot(aes(x = opc_tier)) +
-  geom_line(method = "lm", aes(y = y, fill = urban_suburban_rural)) +
-  geom_ribbon(aes(ymax = ymax, ymin = ymin, fill = urban_suburban_rural)) +
-  geom_jitter(aes(y = value, col = urban_suburban_rural), alpha = 0.01) +
-  facet_wrap(~name) +
-  labs(
-    y = "Pct (%)",
-    x = "Civic opportunity index",
-    fill = "Census classification",
-    col = "Census classification"
-  )
+# dd_opc <- dd %>%
+#   filter(!is.na(opc_tier)) %>%
+#   pivot_longer(
+#     cols = c("race_per_white_nonhispanic", "per_poverty", "college_educ"),
+#     names_to = "name",
+#     values_to = "value"
+#   )
+# 
+# dd_opc_sum <- dd_opc %>%
+#   group_by(urban_suburban_rural, opc_tier, name) %>%
+#   summarize(ggplot2::mean_cl_boot(value))
+# 
+# opc_region_plot <- dd_opc_sum %>%
+#   left_join(dd_opc) %>%
+#   ggplot(aes(x = opc_tier)) +
+#   geom_line(method = "lm", aes(y = y, fill = urban_suburban_rural)) +
+#   geom_ribbon(aes(ymax = ymax, ymin = ymin, fill = urban_suburban_rural)) +
+#   geom_jitter(aes(y = value, col = urban_suburban_rural), alpha = 0.01) +
+#   facet_wrap(~name) +
+#   labs(
+#     y = "Pct (%)",
+#     x = "Civic opportunity index",
+#     fill = "Census classification",
+#     col = "Census classification"
+#   )
 ```
 
 ```{r}
-dd_org <- dd %>%
-  filter(!is.na(org_tier)) %>%
-  pivot_longer(
-    cols = c("race_per_white_nonhispanic", "per_poverty", "college_educ"),
-    names_to = "name",
-    values_to = "value"
-  )
-
-dd_org_sum <- dd_org %>%
-  group_by(urban_suburban_rural, org_tier, name) %>%
-  summarize(ggplot2::mean_cl_boot(value))
-
-org_region_plot <- dd_org_sum %>%
-  left_join(dd_org) %>%
-  ggplot(aes(x = org_tier)) +
-  geom_line(aes(y = y, fill = urban_suburban_rural)) +
-  geom_ribbon(aes(ymax = ymax, ymin = ymin, fill = urban_suburban_rural)) +
-  geom_jitter(aes(y = value, col = urban_suburban_rural), alpha = 0.01) +
-  facet_wrap(~name) +
-  labs(
-    y = "Pct (%)",
-    x = "Organizational density",
-    fill = "Census classification",
-    col = "Census classification"
-  ) 
+# dd_org <- dd %>%
+#   filter(!is.na(org_tier)) %>%
+#   pivot_longer(
+#     cols = c("race_per_white_nonhispanic", "per_poverty", "college_educ"),
+#     names_to = "name",
+#     values_to = "value"
+#   )
+# 
+# dd_org_sum <- dd_org %>%
+#   group_by(urban_suburban_rural, org_tier, name) %>%
+#   summarize(ggplot2::mean_cl_boot(value))
+# 
+# org_region_plot <- dd_org_sum %>%
+#   left_join(dd_org) %>%
+#   ggplot(aes(x = org_tier)) +
+#   geom_line(aes(y = y, fill = urban_suburban_rural)) +
+#   geom_ribbon(aes(ymax = ymax, ymin = ymin, fill = urban_suburban_rural)) +
+#   geom_jitter(aes(y = value, col = urban_suburban_rural), alpha = 0.01) +
+#   facet_wrap(~name) +
+#   labs(
+#     y = "Pct (%)",
+#     x = "Organizational density",
+#     fill = "Census classification",
+#     col = "Census classification"
+#   )
 ```
 
 ```{r}
-opc_region_plot + org_region_plot + plot_annotation(tag_level = "A")
- 
+# opc_region_plot + org_region_plot + plot_annotation(tag_level = "A")
+
 # ggsave(here("outputs", "county_desc.png"), height = 8, width = 15)
 ```
