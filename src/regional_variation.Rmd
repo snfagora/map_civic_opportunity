@@ -22,8 +22,56 @@ pacman::p_load(
 )
 
 options(es.use_symbols = TRUE) # get nice symbols
+```
 
-source(here("functions", "utils.r"))
+```{r}
+# The custom_theme function sets a custom theme for a ggplot2 plot with a black and white color scheme, a 1.2 aspect ratio, and removes grid lines. It also specifies the position of the legend and font sizes for various elements.
+
+custom_theme <- function() {
+  theme_bw(base_size = 13) +
+    theme(
+      aspect.ratio = 1.2,
+      panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(),
+      panel.grid.major.y = element_blank(),
+      panel.grid.minor.y = element_blank(),
+      axis.text.x = element_text(margin = margin(t = 6)),
+      plot.title = element_text(size = 12),
+      plot.subtitle = element_text(size = 10),
+      plot.caption = element_text(colour = "grey50", hjust = 0),
+      legend.position = "bottom"
+    )
+}
+
+# The cut_pop function takes a parameter n_top and selects the top n_top counties by total population for each urban/suburban/rural category. It then performs a robust linear regression using the formula opc_tier ~ race_per_white_nonhispanic + per_poverty + college_educ and weights the observations by TotalPopEst2019. The function outputs standardized coefficients for each variable in the regression model, excluding the intercept.
+
+cut_pop <- function(n_top) {
+  top_fips <- dd %>%
+    ungroup() %>%
+    group_by(urban_suburban_rural) %>%
+    slice_max(order_by = TotalPopEst2019, prop = n_top) %>%
+    pull(FIPS)
+  
+  dd <- dd %>%
+    mutate(top = ifelse(FIPS %in% top_fips, 1, 0))
+  
+  out <- dd %>%
+    filter(top == 1) %>%
+    ungroup() %>%
+    group_by(urban_suburban_rural) %>%
+    # top50) %>%
+    do(tidy(standardize(
+      lm_robust(
+        formula = opc_tier ~ race_per_white_nonhispanic + per_poverty + college_educ,
+        data = .,
+        weights = TotalPopEst2019
+      )
+    ))) %>%
+    filter(!str_detect(term, "(Intercept)")) %>%
+    mutate(top_n = n_top)
+  
+  return(out)
+}
 
 theme_set(custom_theme())
 ```
@@ -33,7 +81,9 @@ theme_set(custom_theme())
 ```{r}
 fips <- read_csv(here("raw_data", "fips_with_population.csv"), col_types = (ZCTA <- "c"))
 
-zcta <- read_csv(here("raw_data", "zcta_cnts.csv"), col_types = (ZCTA <- "c"))
+zcta <- read_csv(here("raw_data", "zcta_cnts.csv"), col_types = (ZCTA <- "c")) 
+
+census_county <- read_csv(here("raw_data", "census_fips_aggregate.csv"))
 
 census_detail <- read_csv(here("raw_data", "census_zcta_detail_data.csv"), col_types = (GEOID <- "c"))
 
@@ -50,14 +100,16 @@ names(county_class)[1] <- "FIPS"
 
 ```{r}
 # census meta data
-census <- census_detail %>%
+census_zcta <- census_detail %>%
   inner_join(census_subject) %>%
   rename(ZCTA = GEOID) %>%
   mutate(race_per_white_nonhispanic = race_white_nonhispanic / population_total) %>%
   mutate(college_educ = (education_attainment_some_col + education_attainment_bs + education_attainment_grad) / education_attainment_total) %>%
   mutate(per_poverty = 1 - poverty_gt_150 / poverty_total) %>%
   dplyr::select(ZCTA, population_total, race_per_white_nonhispanic, per_poverty, college_educ)
+```
 
+```{r}
 # county classification
 county_class <- county_class %>%
   mutate(urban_suburban_rural = case_when(
@@ -74,19 +126,19 @@ county_class <- county_class %>%
 
 # var20 <- load_variables(2020, "acs5", cache = TRUE)
 
-get_acs_zcta <- function(zcta_vec) {
-  census_api_data <- get_acs(
-    geography = "zcta",
-    variables = c(
-      "B05002_001", # total #
-      "B05002_013"
-    ), # foreign born #
-    geometry = FALSE,
-    output = "wide",
-    zcta = zcta_vec,
-    year = 2020
-  )
-}
+# get_acs_zcta <- function(zcta_vec) {
+#   census_api_data <- get_acs(
+#     geography = "zcta",
+#     variables = c(
+#       "B05002_001", # total #
+#       "B05002_013"
+#     ), # foreign born #
+#     geometry = FALSE,
+#     output = "wide",
+#     zcta = zcta_vec,
+#     year = 2020
+#   )
+# }
 
 # census_api_data <- map_dfr(census$ZCTA, get_acs_zcta)
 
@@ -105,13 +157,27 @@ get_acs_zcta <- function(zcta_vec) {
 ```{r}
 dd <- fips %>%
   left_join(zcta) %>%
-  left_join(census) %>%
+  left_join(census_zcta) %>%
   left_join(county_class)
+
+county_orgs <- zcta %>%
+  group_by(FIPS) %>%
+  summarize(all.orgs = sum(all.orgs),
+            eng = sum(eng))
 
 dd <- dd %>%
   mutate(opc = 1000 * eng / population_total) %>%
   mutate(opc_tier = ntile(opc, 5)) %>%
-  mutate(all_org = 1000 * all.orgs / population_total)
+  mutate(all_org = 1000 * all.orgs / population_total) %>%
+  mutate(org_tier = ntile(all_org, 5))
+
+county_cov <- census_county %>%
+  left_join(county_orgs) %>%
+  left_join(county_class) %>%
+  mutate(opc = 1000 * eng / population_total) %>%
+  mutate(opc_tier = ntile(opc, 5)) %>%
+  mutate(all_org = 1000 * all.orgs / population_total) %>%
+  mutate(org_tier = ntile(all_org, 5))
 ```
 
 ```{r}
@@ -141,7 +207,7 @@ min(sum_county_zip$n) # 1 zip code in a county
 # Summarize data 
 
 ```{r}
-dd %>%
+county_cov %>%
   filter(!is.na(opc_tier)) %>%
   group_by(opc_tier, urban_suburban_rural) %>%
   summarize(
@@ -156,38 +222,28 @@ dd %>%
 ```{r}
 library(MASS)
 
-corr_sum <- dd %>%
-  group_by(urban_suburban_rural, FIPS) %>%
-  summarize(
-    opct = mean(opc_tier, na.rm = T),
-    orgt = mean(all_org, na.rm = T),
-    white = mean(race_per_white_nonhispanic, na.rm = T),
-    poverty = mean(per_poverty, na.rm = T),
-    educ = mean(college_educ, na.rm = T)
-  )
-```
+lm_btw_cty_all_org <- county_cov %>%
+  group_by(urban_suburban_rural) %>%
+  do(tidy(standardize(lm_robust(formula = all_org ~ race_per_white_nonhispanic + per_poverty + college_educ, data = .))))
 
-```{r}
-corr_mod <- corr_sum %>%
-  do(tidy(standardize(lm_robust(formula = opct ~ white + poverty + educ, data = .))))
+lm_btw_cty_civc_index <- county_cov %>%
+  group_by(urban_suburban_rural) %>%
+  do(tidy(standardize(lm_robust(formula = opc_tier ~ race_per_white_nonhispanic + per_poverty + college_educ, data = .))))
 
-corr_mod_rc <- corr_sum %>%
-  do(tidy(standardize(lm_robust(formula = orgt ~ white + poverty + educ, data = .))))
-
-corr_mod_bind <- bind_rows(
-  mutate(corr_mod, DV = "Civic opportunity index"),
-  mutate(corr_mod_rc, DV = "Org density index")
+btw_mod_bind <- bind_rows(
+  mutate(lm_btw_cty_civc_index, DV = "Civic opportunity index"),
+  mutate(lm_btw_cty_all_org, DV = "Organizational density")
 )
 ```
 
 ```{r}
-between_counties_plot <- corr_mod_bind %>%
-  mutate(term = recode(term,
-    "white" = "Non-hispanic white",
-    "poverty" = "Federal poverty level",
-    "educ" = "Colleged educated"
-  )) %>%
+between_counties_plot <- btw_mod_bind %>%
   filter(!str_detect(term, "(Intercept)")) %>%
+  mutate(term = recode(term,
+    "race_per_white_nonhispanic" = "Non-hispanic white",
+    "per_poverty" = "Federal poverty level",
+    "college_educ" = "College educated"
+  )) %>%
   ggplot(aes(x = urban_suburban_rural)) +
   geom_col(aes(y = estimate, fill = DV), position = "dodge", alpha = 0.8) +
   geom_errorbar(aes(ymax = conf.high, ymin = conf.low, fill = DV), position = "dodge") +
@@ -196,7 +252,6 @@ between_counties_plot <- corr_mod_bind %>%
     x = "",
     y = "Estimated coefficient",
     title = "Between counties",
-    subtitle = "Aggregated zip code-level observations by county",
     fill = "Type"
   ) +
   scale_fill_viridis_d(option = "rocket", begin = 0.2, end = 0.8) +
@@ -204,7 +259,7 @@ between_counties_plot <- corr_mod_bind %>%
 
 between_counties_plot
 
-ggsave(here("outputs", "btw_counties.eps"), width = 8, height = 8)
+ggsave(here("outputs", "btw_counties.png"), width = 8, height = 8)
 ```
 
 ```{r}
@@ -276,7 +331,7 @@ dd_lm_rc_mean <- dd_lm_rc %>%
 ```{r}
 dd_lm_bind <- bind_rows(
   mutate(dd_lm_mean, Type = "Civic opportunity index"),
-  mutate(dd_lm_rc_mean, Type = "Org density index")
+  mutate(dd_lm_rc_mean, Type = "Organizational density index")
   )
 ```
 
@@ -286,7 +341,7 @@ within_counties_plot <- dd_lm_bind %>%
   mutate(term = recode(term,
     "race_per_white_nonhispanic" = "Non-hispanic white",
     "per_poverty" = "Federal poverty level",
-    "college_educ" = "Colleged educated"
+    "college_educ" = "College educated"
   )) %>%
   mutate(term = str_wrap(term, width = 10)) %>%
   ggplot(aes(x = term)) +
@@ -297,7 +352,7 @@ within_counties_plot <- dd_lm_bind %>%
 #  coord_flip() +
   labs(
     title = "Within counties (urban areas)",
-    subtitle = glue("50% of top zip codes by \n the 2019 population from urban areas"),
+    subtitle = glue("50% of top zip codes by \n the estimated 2019 population from urban areas"),
     x = "",
     y = "Average estimated coefficient"
   ) +
@@ -309,9 +364,9 @@ ggsave(here("outputs", "within_counties.png"))
 ```
 
 ```{r}
-region_plot + within_counties_plot + plot_annotation(tag_level = "A")
+#region_plot + within_counties_plot + plot_annotation(tag_level = "A")
 
-ggsave(here("outputs", "county_desc.png"), height = 8, width = 15)
+#ggsave(here("outputs", "county_desc.png"), height = 8, width = 15)
 ```
 
 ```{r}
