@@ -39,6 +39,8 @@ custom_theme <- function(size = 13) {
       legend.position = "bottom"
     ) 
 }
+
+ggplot2::theme_set(custom_theme())
 ```
 
 # Import data (from local sources)
@@ -151,19 +153,6 @@ max(sum_county_zip$n) # 360 zip codes in a county (LA county)
 min(sum_county_zip$n) # 1 zip code in a county
 ```
 
-# Summarize data 
-
-```{r}
-dd %>%
-  filter(!is.na(opc_tier)) %>%
-  group_by(opc_tier, urban_suburban_rural) %>%
-  summarize(
-    white = mean(race_per_white_nonhispanic, na.rm = T),
-    poverty = mean(per_poverty, na.rm = T),
-    educ = mean(college_educ, na.rm = T)
-  )
-```
-
 # Visualize data 
 
 ```{r}
@@ -176,16 +165,17 @@ corr_sum <- dd %>%
     orgt = mean(all_org, na.rm = T),
     white = mean(race_per_white_nonhispanic, na.rm = T),
     poverty = mean(per_poverty, na.rm = T),
-    educ = mean(college_educ, na.rm = T)
+    educ = mean(college_educ, na.rm = T),
+    pop = mean(TotalPopEst2019, na.rm = T)
   )
 ```
 
 ```{r}
 corr_mod <- corr_sum %>%
-  do(tidy(standardize(lm_robust(formula = opct ~ white + poverty + educ, data = .))))
+  do(tidy(standardize(lm_robust(formula = opct ~ white + poverty + educ, data = ., weight = pop))))
 
 corr_mod_rc <- corr_sum %>%
-  do(tidy(standardize(lm_robust(formula = orgt ~ white + poverty + educ, data = .))))
+  do(tidy(standardize(lm_robust(formula = orgt ~ white + poverty + educ, data = ., weight = pop))))
 
 corr_mod_bind <- bind_rows(
   mutate(corr_mod, DV = "Civic opportunity index"),
@@ -268,7 +258,7 @@ dd_lm_rc <- dd %>%
   filter(urban_suburban_rural == "Urban") %>%
   slice_max(order_by = TotalPopEst2019, prop = 0.50) %>%
   group_by(FIPS) %>%
-  do(tidy(standardize(lm_robust(formula = all_org ~ race_per_white_nonhispanic + per_poverty + college_educ, data = .))))
+  do(tidy(standardize(lm_robust(formula = all_org ~ race_per_white_nonhispanic + per_poverty + college_educ, data = ., weight = TotalPopEst2019))))
 
 dd_lm_mean <- dd_lm %>%
   ungroup() %>%
@@ -279,7 +269,7 @@ dd_lm_rc <- dd %>%
   filter(urban_suburban_rural == "Urban") %>%
   slice_max(order_by = TotalPopEst2019, prop = 0.50) %>%
   group_by(FIPS) %>%
-  do(tidy(standardize(lm_robust(formula = all_org ~ race_per_white_nonhispanic + per_poverty + college_educ, data = .))))
+  do(tidy(standardize(lm_robust(formula = all_org ~ race_per_white_nonhispanic + per_poverty + college_educ, data = ., weight = TotalPopEst2019))))
 
 dd_lm_rc_mean <- dd_lm_rc %>%
   ungroup() %>%
@@ -322,6 +312,8 @@ within_counties_plot
 
 ggsave(here("outputs", "within_counties.png"))
 ```
+
+We regressed the civic opportunity index on the college-educated rate, non-Hispanic white rate, and federal poverty level. Robust standard errors were used. Observations were weighted by the 2019 estimated population variable from the Census. All coefficients were standardized so that independent variables could be compared. As a comparison, we applied the same regression model to the organizational density, defined as the number of organizations per 1,000 people in a zipcode. In the left panel, we divided the data based on the urban, suburban, and rural classification and calculated and averaged estimated coefficients at the county level. It helps to compare the county variations within each region. In the right panel, we estimate the relationship between the response and predictor variables at the zipcode level in the urban areas where there is a sufficient number of observations (zipcodes). 
 
 ```{r}
 region_plot + within_counties_plot + plot_annotation(tag_level = "A")
