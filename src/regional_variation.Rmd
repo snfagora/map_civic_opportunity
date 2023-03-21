@@ -124,9 +124,11 @@ dd <- fips %>%
   left_join(county_class)
 
 dd <- dd %>%
+  filter(!is.na(population_total)) %>%
   mutate(opc = 1000 * eng / population_total) %>%
   mutate(opc_tier = ntile(opc, 5)) %>%
-  mutate(all_org = 1000 * all.orgs / population_total)
+  mutate(all_org = 1000 * all.orgs / population_total) %>%
+  mutate(org_tier = ntile(all_org, 5))
 ```
 
 ```{r}
@@ -208,43 +210,13 @@ between_counties_plot <- corr_mod_bind %>%
 
 between_counties_plot
 
-ggsave(here("outputs", "btw_counties.eps"), width = 8, height = 8)
+ggsave(here("outputs", "btw_counties.png"), width = 8, height = 8)
 ```
 
 ```{r}
-dd_opc <- dd %>%
-  filter(!is.na(opc_tier)) %>%
-  pivot_longer(
-    cols = c("race_per_white_nonhispanic", "per_poverty", "college_educ"),
-    names_to = "name",
-    values_to = "value"
-  )
+between_counties_plot + labs(title = "Between regions")
 
-dd_opc_sum <- dd_opc %>%
-  group_by(urban_suburban_rural, opc_tier, name) %>%
-  summarize(ggplot2::mean_cl_boot(value))
-
-region_plot <- dd_opc_sum %>%
-  left_join(dd_opc) %>%
-  ggplot(aes(x = opc_tier)) +
-  geom_line(method = "lm", aes(y = y, fill = urban_suburban_rural)) +
-  geom_ribbon(aes(ymax = ymax, ymin = ymin, fill = urban_suburban_rural)) +
-  geom_jitter(aes(y = value, col = urban_suburban_rural), alpha = 0.01) +
-  facet_wrap(~name) +
-  labs(
-    title = "Pooled data",
-    y = "Pct (%)",
-    x = "Civic opportunity index",
-    fill = "Census classification",
-    col = "Census classification"
-  )
-```
-
-```{r}
-dd <- dd %>%
-  left_join(sum_county_zip %>%
-    rename(zip_n = n) %>%
-    dplyr::select(FIPS, zip_n))
+ggsave(here("outputs", "btw_regions.png"), width = 8, height = 8)
 ```
 
 ```{r}
@@ -252,13 +224,7 @@ dd_lm <- dd %>%
   filter(urban_suburban_rural == "Urban") %>%
   slice_max(order_by = TotalPopEst2019, prop = 0.50) %>%
   group_by(FIPS) %>%
-  do(tidy(standardize(lm_robust(formula = opc_tier ~ race_per_white_nonhispanic + per_poverty + college_educ, data = .))))
-
-dd_lm_rc <- dd %>%
-  filter(urban_suburban_rural == "Urban") %>%
-  slice_max(order_by = TotalPopEst2019, prop = 0.50) %>%
-  group_by(FIPS) %>%
-  do(tidy(standardize(lm_robust(formula = all_org ~ race_per_white_nonhispanic + per_poverty + college_educ, data = ., weight = TotalPopEst2019))))
+  do(tidy(standardize(lm_robust(formula = opc_tier ~ race_per_white_nonhispanic + per_poverty + college_educ, data = ., weight = TotalPopEst2019))))
 
 dd_lm_mean <- dd_lm %>%
   ungroup() %>%
@@ -269,15 +235,13 @@ dd_lm_rc <- dd %>%
   filter(urban_suburban_rural == "Urban") %>%
   slice_max(order_by = TotalPopEst2019, prop = 0.50) %>%
   group_by(FIPS) %>%
-  do(tidy(standardize(lm_robust(formula = all_org ~ race_per_white_nonhispanic + per_poverty + college_educ, data = ., weight = TotalPopEst2019))))
+  do(tidy(standardize(lm_robust(formula = org_tier ~ race_per_white_nonhispanic + per_poverty + college_educ, data = ., weight = TotalPopEst2019))))
 
 dd_lm_rc_mean <- dd_lm_rc %>%
   ungroup() %>%
   group_by(term) %>%
   summarize(ggplot2::mean_cl_boot(estimate))
-```
 
-```{r}
 dd_lm_bind <- bind_rows(
   mutate(dd_lm_mean, Type = "Civic opportunity index"),
   mutate(dd_lm_rc_mean, Type = "Organizational density")
@@ -300,8 +264,8 @@ within_counties_plot <- dd_lm_bind %>%
   geom_hline(yintercept = 0, linetype = "dashed", col = "red") +
 #  coord_flip() +
   labs(
-    title = "Within counties (urban areas)",
-    subtitle = glue("50% of top zip codes by \n the 2019 population from urban areas"),
+    title = "Within urban counties",
+    subtitle = glue("50% of top zip codes by \n the 2019 population from urban counties"),
     x = "",
     y = "Average estimated coefficient"
   ) +
@@ -313,16 +277,74 @@ within_counties_plot
 ggsave(here("outputs", "within_counties.png"))
 ```
 
-We regressed the civic opportunity index on the college-educated rate, non-Hispanic white rate, and federal poverty level. Robust standard errors were used. Observations were weighted by the 2019 estimated population variable from the Census. All coefficients were standardized so that independent variables could be compared. As a comparison, we applied the same regression model to the organizational density, defined as the number of organizations per 1,000 people in a zipcode. In the left panel, we divided the data based on the urban, suburban, and rural classification and calculated and averaged estimated coefficients at the county level. It helps to compare the county variations within each region. In the right panel, we estimate the relationship between the response and predictor variables at the zipcode level in the urban areas where there is a sufficient number of observations (zipcodes). 
+We regressed the civic opportunity index on the college-educated rate, non-Hispanic white rate, and federal poverty level, using robust standard errors. Observations were weighted by the 2019 estimated population variable from the Census. All coefficients were standardized to allow for comparison of independent variables. As a comparison, we applied the same regression model to organizational density, defined as the number of organizations per 1,000 people in a zipcode.
 
-```{r}
-region_plot + within_counties_plot + plot_annotation(tag_level = "A")
-
-ggsave(here("outputs", "county_desc.png"), height = 8, width = 15)
-```
+In the left panel, we divided the data based on urban, suburban, and rural classifications, calculated the mean of zipcode-level observations in each county, and estimated and averaged the relationship between response and predictor variables. This helps to compare county variations within each region. In the right panel, we estimated the relationship between response and predictor variables at the zipcode level in urban counties, where there are a sufficient number of observations (zipcodes), and averaged these coefficients. The error bars indicate the 95% confidence intervals
 
 ```{r}
 between_counties_plot + within_counties_plot + plot_annotation(tag_level = "A")
 
 ggsave(here("outputs", "county_desc_unit_diff.png"), height = 8, width = 10)
+```
+
+```{r}
+dd_opc <- dd %>%
+  filter(!is.na(opc_tier)) %>%
+  pivot_longer(
+    cols = c("race_per_white_nonhispanic", "per_poverty", "college_educ"),
+    names_to = "name",
+    values_to = "value"
+  )
+
+dd_opc_sum <- dd_opc %>%
+  group_by(urban_suburban_rural, opc_tier, name) %>%
+  summarize(ggplot2::mean_cl_boot(value))
+
+opc_region_plot <- dd_opc_sum %>%
+  left_join(dd_opc) %>%
+  ggplot(aes(x = opc_tier)) +
+  geom_line(method = "lm", aes(y = y, fill = urban_suburban_rural)) +
+  geom_ribbon(aes(ymax = ymax, ymin = ymin, fill = urban_suburban_rural)) +
+  geom_jitter(aes(y = value, col = urban_suburban_rural), alpha = 0.01) +
+  facet_wrap(~name) +
+  labs(
+    y = "Pct (%)",
+    x = "Civic opportunity index",
+    fill = "Census classification",
+    col = "Census classification"
+  )
+```
+
+```{r}
+dd_org <- dd %>%
+  filter(!is.na(org_tier)) %>%
+  pivot_longer(
+    cols = c("race_per_white_nonhispanic", "per_poverty", "college_educ"),
+    names_to = "name",
+    values_to = "value"
+  )
+
+dd_org_sum <- dd_org %>%
+  group_by(urban_suburban_rural, org_tier, name) %>%
+  summarize(ggplot2::mean_cl_boot(value))
+
+org_region_plot <- dd_org_sum %>%
+  left_join(dd_org) %>%
+  ggplot(aes(x = org_tier)) +
+  geom_line(aes(y = y, fill = urban_suburban_rural)) +
+  geom_ribbon(aes(ymax = ymax, ymin = ymin, fill = urban_suburban_rural)) +
+  geom_jitter(aes(y = value, col = urban_suburban_rural), alpha = 0.01) +
+  facet_wrap(~name) +
+  labs(
+    y = "Pct (%)",
+    x = "Organizational density",
+    fill = "Census classification",
+    col = "Census classification"
+  ) 
+```
+
+```{r}
+opc_region_plot + org_region_plot + plot_annotation(tag_level = "A")
+ 
+# ggsave(here("outputs", "county_desc.png"), height = 8, width = 15)
 ```
