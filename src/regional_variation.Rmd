@@ -18,9 +18,13 @@ pacman::p_load(
   estimatr,
   effectsize,
   patchwork,
+  corrplot,
   tidycensus,
   callr
 )
+
+devtools::install_github("graemeblair/stdidx")
+library(stdidx)
 
 options(es.use_symbols = TRUE) # get nice symbols
 
@@ -46,6 +50,10 @@ ggplot2::theme_set(custom_theme())
 # Import data (from local sources)
 
 ```{r}
+mbf <- read_csv(here("raw_data", "irs_mbf.csv"))
+
+org_activites <- read_csv(here("raw_data", "irs_org_activities.csv"))
+
 fips <- read_csv(here("raw_data", "fips_with_population.csv"), col_types = (ZCTA <- "c"))
 
 zcta <- read_csv(here("raw_data", "zcta_cnts.csv"), col_types = (ZCTA <- "c"))
@@ -59,6 +67,58 @@ county_class <- read_csv(here("raw_data", "County_Classifications.csv"))
 county_mutual <- read_csv(here("raw_data", "reproduction_data_mutual_aid_hubs_county.csv"))
 
 names(county_class)[1] <- "FIPS"
+```
+
+# Explore data 
+
+civic opps = if an org does any of the following: offering volunteer opportunities / membership / ways to take civic or political action / community events
+
+```{r}
+org_activites_mbf <- org_activites %>% left_join(mbf %>% dplyr::select(ein, state, city, zip))
+
+# the first 5 digits 
+org_activites_mbf$ZCTA <- substr(org_activites_mbf$zip, 1, 5)
+
+org_activites_mbf <- org_activites_mbf %>%
+  filter(!is.na(volunteer)) %>%
+  filter(!is.na(membership)) %>%
+  filter(!is.na(take_action)) %>%
+  filter(!is.na(events)) %>%
+  mutate(opp_binary = ifelse(volunteer == 1 | membership == 1 | take_action == 1 | events == 1, 1, 0)) %>%
+  mutate(opp_mean = idx_mean(volunteer, membership, take_action, events),
+         opp_invcov = idx_invcov(volunteer, membership, take_action, events))
+
+org_sums <- org_activites_mbf %>%
+  group_by(ZCTA) %>%
+  summarize(vol_sum = sum(volunteer, na.rm = T),
+            mem_sum = sum(membership, na.rm = T),
+            action_sum = sum(take_action, na.rm = T),
+            event_sum = sum(events, na.rm = T),
+            opp_binary_sum = sum(opp_binary, na.rm = T),
+            opp_mean_sum = sum(opp_mean, na.rm = T), 
+            opp_invcov_sum = sum(opp_invcov, na.rm = T)) 
+
+png(file = here("outputs", "civic_opportunity_index.png"),     
+  width     = 3.25,
+  height    = 3.25,
+  units     = "in",
+  res = 600,
+  pointsize = 4
+)
+
+par(
+  mar      = c(5, 5, 2, 2),
+  xaxs     = "i",
+  yaxs     = "i",
+  cex.axis = 2,
+  cex.lab  = 2
+)
+
+cor(org_sums %>% dplyr::select(matches("_sum"))) %>%
+  corrplot(tl.col = "black",
+           method = "number")
+
+dev.off()
 ```
 
 # Wrangle data 
