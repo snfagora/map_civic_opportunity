@@ -20,7 +20,10 @@ pacman::p_load(
   patchwork,
   corrplot,
   tidycensus,
-  callr
+  callr,
+  vroom,
+  naniar,
+  modelsummary
 )
 
 devtools::install_github("graemeblair/stdidx")
@@ -50,9 +53,9 @@ ggplot2::theme_set(custom_theme())
 # Import data (from local sources)
 
 ```{r}
-mbf <- read_csv(here("raw_data", "irs_mbf.csv"))
+mbf <- vroom(here("raw_data", "irs_mbf.csv"))
 
-org_activites <- read_csv(here("raw_data", "irs_org_activities.csv"))
+org_activites <- vroom(here("raw_data", "irs_org_activities.csv"))
 
 fips <- read_csv(here("raw_data", "fips_with_population.csv"), col_types = (ZCTA <- "c"))
 
@@ -73,17 +76,30 @@ names(county_class)[1] <- "FIPS"
 
 civic opps = if an org does any of the following: offering volunteer opportunities / membership / ways to take civic or political action / community events
 
-```{r}
-org_activites_mbf <- org_activites %>% left_join(mbf %>% dplyr::select(ein, state, city, zip))
 
+```{r}
+org_activites_mbf <- org_activites %>% 
+  left_join(mbf %>% dplyr::select(ein, state, city, zip))
+
+org_activites_mbf <- org_activites_mbf %>%
+  mutate(website = ifelse(!is.na(take_action) | !is.na(volunteer) | !is.na(membership) | !is.na(events) | !is.na(resources) | !is.na(advocacy) | !is.na(services) | !is.na(chapters) | !is.na(board) | !is.na(press) | !is.na(donations), 1, 0)) %>%
+  distinct() %>%
+  dplyr::select(ein, state, city, zip, take_action, volunteer, membership, events, website)
+
+org_activites_mbf$website %>% sum() # 894,353
+
+org_activites_mbf <- org_activites_mbf %>% 
+  filter(website == 1) 
+
+org_activites_mbf <- org_activites_mbf %>%
+  replace_na(list(take_action = 0, volunter = 0, membership = 0, events = 0))
+```
+
+```{r}
 # the first 5 digits
 org_activites_mbf$ZCTA <- substr(org_activites_mbf$zip, 1, 5)
 
 org_activites_mbf <- org_activites_mbf %>%
-  filter(!is.na(volunteer)) %>%
-  filter(!is.na(membership)) %>%
-  filter(!is.na(take_action)) %>%
-  filter(!is.na(events)) %>%
   mutate(opp_binary = ifelse(volunteer == 1 | membership == 1 | take_action == 1 | events == 1, 1, 0)) %>%
   mutate(
     opp_mean = idx_mean(volunteer, membership, take_action, events),
