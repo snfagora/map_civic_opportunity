@@ -1,5 +1,5 @@
 $)C---
-title: "Regional variation"
+title: "Civic opportunity measurement"
 author: "Jae Yeon Kim"
 date: "`r Sys.Date()`"
 output: html_document
@@ -72,14 +72,17 @@ county_mutual <- read_csv(here("raw_data", "reproduction_data_mutual_aid_hubs_co
 names(county_class)[1] <- "FIPS"
 ```
 
-# Explore data 
+# Create a sampling frame
 
-civic opps = if an org does any of the following: offering volunteer opportunities / membership / ways to take civic or political action / community events
+- The old definition: An organization is considered a civic opportunity organization if it offers any of the following: volunteer opportunities, membership, ways to take civic or political action, or community events.
 
+- The new definition: It follows the basic structure laid out in the old definition but places more weight on new information. For instance, most civic organizations provide membership (less weight), but only a few offer opportunities to take action (more weight).
 
 ```{r}
 org_activites_mbf <- org_activites %>% 
   left_join(mbf %>% dplyr::select(ein, state, city, zip))
+
+# Assumption: if any of the following variable has a non-NA value, the data come the organizations' websites. 
 
 org_activites_mbf <- org_activites_mbf %>%
   mutate(website = ifelse(!is.na(take_action) | !is.na(volunteer) | !is.na(membership) | !is.na(events) | !is.na(resources) | !is.na(advocacy) | !is.na(services) | !is.na(chapters) | !is.na(board) | !is.na(press) | !is.na(donations), 1, 0)) %>%
@@ -91,21 +94,31 @@ org_activites_mbf$website %>% sum() # 894,353
 org_activites_mbf <- org_activites_mbf %>% 
   filter(website == 1) 
 
-org_activites_mbf <- org_activites_mbf %>%
-  replace_na(list(take_action = 0, volunter = 0, membership = 0, events = 0))
-```
+# Milan, I learned from you that this assumption is incorrect. Some of the activity values were detected through the IRS, rather than through the organizations' website data. Please make the necessary correction.
 
-```{r}
+nrow(org_activites_mbf)
+
+org_activites_mbf <- org_activites_mbf %>%
+  replace_na(list(take_action = 0, volunteer = 0, membership = 0, events = 0))
+
 # the first 5 digits
 org_activites_mbf$ZCTA <- substr(org_activites_mbf$zip, 1, 5)
+```
 
+# Create and compare measures 
+
+* The following three measures are on a 0-1 scale. 
+
+```{r}
 org_activites_mbf <- org_activites_mbf %>%
   mutate(opp_binary = ifelse(volunteer == 1 | membership == 1 | take_action == 1 | events == 1, 1, 0)) %>%
   mutate(
     opp_mean = idx_mean(volunteer, membership, take_action, events),
     opp_invcov = idx_invcov(volunteer, membership, take_action, events)
   )
+```
 
+```{r}
 org_sums <- org_activites_mbf %>%
   group_by(ZCTA) %>%
   summarize(
@@ -143,7 +156,7 @@ cor(org_sums %>% dplyr::select(matches("_sum"))) %>%
 
 dev.off()
 ```
-# Wrangle data 
+# Linke org and census data 
 
 ```{r}
 # census meta data
@@ -238,7 +251,7 @@ max(sum_county_zip$n) # 290 zip codes in a county (LA county)
 min(sum_county_zip$n) # 1 zip code in a county
 ```
 
-# Visualize data 
+# Visualize regression outputs 
 
 ```{r}
 library(MASS)
