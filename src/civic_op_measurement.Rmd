@@ -1,4 +1,4 @@
-$)C---
+---
 title: "Civic opportunity measurement"
 author: "Jae Yeon Kim"
 date: "`r Sys.Date()`"
