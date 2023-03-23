@@ -116,6 +116,8 @@ org_activites_mbf <- org_activites_mbf %>%
     opp_mean = idx_mean(volunteer, membership, take_action, events),
     opp_invcov = idx_invcov(volunteer, membership, take_action, events)
   )
+
+write_csv(org_activites_mbf, here("processed_data", "org_measures.csv"))
 ```
 
 ```{r}
