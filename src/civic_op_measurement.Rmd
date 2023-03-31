@@ -53,21 +53,35 @@ ggplot2::theme_set(custom_theme())
 # Import data (from local sources)
 
 ```{r}
+# this is the main data 
 mbf <- vroom(here("raw_data", "irs_mbf.csv"))
 
+# org activities from the websites and elsewhere 
 org_activites <- vroom(here("raw_data", "irs_org_activities.csv"))
 
+# fips (county-level)
 fips <- read_csv(here("raw_data", "fips_with_population.csv"), col_types = (ZCTA <- "c"))
 
+fips_cnts_invcov <- read_csv(here("raw_data", "fips_cnts_invcov.csv"))
+
+# zcta (zip-code level)
 zcta <- read_csv(here("raw_data", "zcta_cnts.csv"), col_types = (ZCTA <- "c"))
 
+zcta_cnts_invcov <- read_csv(here("raw_data", "zcta_cnts_invcov.csv"))
+
+# social capital data 
+social_capital <- read_csv(here("raw_data", "social_capital.csv"))
+```
+
+```{r}
+# other demographic data 
 census_detail <- read_csv(here("raw_data", "census_zcta_detail_data.csv"), col_types = (GEOID <- "c"))
 
 census_subject <- read_csv(here("raw_data", "census_zcta_subject_data.csv"), col_types = (GEOID <- "c"))
 
 county_class <- read_csv(here("raw_data", "County_Classifications.csv"))
 
-county_mutual <- read_csv(here("raw_data", "reproduction_data_mutual_aid_hubs_county.csv"))
+#county_mutual <- read_csv(here("raw_data", "reproduction_data_mutual_aid_hubs_county.csv"))
 
 names(county_class)[1] <- "FIPS"
 ```
@@ -118,54 +132,6 @@ org_activites_mbf <- org_activites_mbf %>%
   )
 
 write_csv(org_activites_mbf, here("processed_data", "org_measures.csv"))
-```
-
-```{r}
-org_activites_mbf %>%
-  pivot_longer(matches("opp_")) %>%
-  ggplot(aes(x = value, col = name)) +
-  geom_density()
-
-ggsave(here("outputs", "inv_cov.png"))
-```
-
-```{r}
-org_sums <- org_activites_mbf %>%
-  group_by(ZCTA) %>%
-  summarize(
-    vol_sum = sum(volunteer, na.rm = T),
-    mem_sum = sum(membership, na.rm = T),
-    action_sum = sum(take_action, na.rm = T),
-    event_sum = sum(events, na.rm = T),
-    opp_binary_sum = sum(opp_binary, na.rm = T),
-    opp_mean_sum = sum(opp_mean, na.rm = T),
-    opp_invcov_sum = sum(opp_invcov, na.rm = T)
-  )
-
-png(
-  file = here("outputs", "civic_opportunity_index.png"),
-  width = 3.25,
-  height = 3.25,
-  units = "in",
-  res = 600,
-  pointsize = 4
-)
-
-par(
-  mar      = c(5, 5, 2, 2),
-  xaxs     = "i",
-  yaxs     = "i",
-  cex.axis = 2,
-  cex.lab  = 2
-)
-
-cor(org_sums %>% dplyr::select(matches("_sum"))) %>%
-  corrplot(
-    tl.col = "black",
-    method = "number"
-  )
-
-dev.off()
 ```
 
 # Link org and census data 
@@ -225,18 +191,11 @@ county_class <- county_class %>%
 ```
 
 ```{r}
-dd <- fips %>%
+dd <- org_activites_mbf %>%
   left_join(zcta) %>%
+  left_join(fips) %>%
   left_join(census) %>%
-  left_join(county_class) %>%
-  left_join(org_sums)
-
-dd <- dd %>%
-  filter(!is.na(population_total)) %>%
-  mutate(opc = 1000 * opp_invcov_sum / population_total) %>%
-  mutate(opc_tier = ntile(opc, 5)) %>%
-  mutate(all_org = 1000 * all.orgs / population_total) %>%
-  mutate(org_tier = ntile(all_org, 5))
+  left_join(county_class) 
 ```
 
 ```{r}
@@ -255,12 +214,147 @@ sum_county_zip %>%
     x = "The # of zip codes in a county",
     fill = "Census urban-rural classification"
   )
-
 ggsave(here("outputs", "zip_county_n.png"))
 
 max(sum_county_zip$n) # 290 zip codes in a county (LA county)
 
 min(sum_county_zip$n) # 1 zip code in a county
+```
+
+# Compare measures 
+
+```{r}
+names(fips_cnts_invcov)[1] <- "FIPS"
+
+social_capital$fips_n <- 
+  formatC(social_capital$fips_n, width = 5, format = "d", flag = "0")
+
+names(social_capital)[1] <- "FIPS"
+```
+
+## ZCTA 
+
+```{r}
+zcta_table <- dd %>%
+  select(ZCTA, FIPS, all.orgs, vol, mem, evt, act, volunteer, membership, events, take_action, opp_invcov, population_total) %>%
+  group_by(ZCTA) %>%
+  summarize(all_orgs = sum(all.orgs, na.rm = T), 
+            vol_sum = sum(volunteer, na.rm = T), 
+            mem_sum = sum(membership, na.rm = T),
+            evt_sum = sum(events, na.rm = T), 
+            act_sum = sum(take_action, na.rm = T), 
+            opp_sum = sum(opp_invcov, na.rm = T))
+
+names(zcta_cnts_invcov)[1] <- "ZCTA"
+
+png(height = 400, width = 400, 
+    file = here("outputs", "zcta_corr.png"), type = "cairo")
+
+zcta_table %>%
+  left_join(zcta_cnts_invcov) %>%
+  filter(!is.na(idx_sum)) %>% # why there are so many NSs?
+  select(where(is.numeric)) %>%
+  cor() %>%
+  corrplot(method = 'number',
+           order = "FPC",
+           tl.col="black")
+
+dev.off()
+
+zcta_table %>%
+  pivot_longer(c("mem_sum", "evt_sum", "act_sum", "vol_sum")) %>%
+  ggplot(aes(x = value, y = opp_sum)) +
+  geom_point() +
+  facet_wrap(~name) +
+  scale_x_log10() +
+  scale_y_log10()
+
+ggsave(here("outputs", "index_linearity_zcta.png"), height = 8, width = 6)
+```
+
+## FIPS
+
+```{r}
+fips_table <- dd %>%
+  select(ZCTA, FIPS, all.orgs, vol, mem, evt, act, volunteer, membership, events, take_action, opp_invcov, population_total) %>%
+  group_by(FIPS) %>%
+  summarize(all_orgs = sum(all.orgs, na.rm = T), 
+            vol_sum = sum(volunteer, na.rm = T), 
+            mem_sum = sum(membership, na.rm = T),
+            evt_sum = sum(events, na.rm = T), 
+            act_sum = sum(take_action, na.rm = T), 
+            opp_sum = sum(opp_invcov, na.rm = T))
+
+names(fips_cnts_invcov)[1] <- "FIPS"
+```
+
+```{r}
+png(height = 400, width = 400, 
+    file = here("outputs", "fips_corr.png"), type = "cairo")
+
+fips_table %>%
+  left_join(fips_cnts_invcov) %>%
+  filter(!is.na(idx_sum)) %>% # why there are so many NSs?
+  select(where(is.numeric)) %>%
+  cor() %>%
+  corrplot(method = 'number',
+           order = "FPC",
+           tl.col="black")
+
+dev.off()
+```
+
+```{r}
+joined_table <- fips_table %>%
+  left_join(fips_cnts_invcov) %>%
+  filter(!is.na(idx_sum)) %>% # why there are so many NSs?
+  left_join(social_capital)
+```
+
+```{r}
+png(height = 400, width = 400, 
+    file = here("outputs", "joined_corr.png"), type = "cairo")
+
+joined_table %>%
+  filter(!is.na(idx_sum)) %>%
+  filter(!is.na(socialcap)) %>%
+  select(c(names(fips_table), "bridging", "bonding", "linking", "socialcap")) %>%
+  select(where(is.numeric)) %>%
+  cor() %>%
+  corrplot(method = 'number')
+
+dev.off()
+```
+
+```{r}
+joined_table %>%
+  pivot_longer(c("mem_sum", "evt_sum", "act_sum", "vol_sum")) %>%
+  ggplot(aes(x = value, y = opp_sum)) +
+  geom_point() +
+  facet_wrap(~name) +
+  scale_x_log10() +
+  scale_y_log10()
+
+ggsave(here("outputs", "index_linearity_cnty.png"), height = 8, width = 6)
+```
+
+```{r}
+social_capital %>%
+  pivot_longer(c("bridging", "bonding", "linking")) %>%
+  ggplot(aes(x = value, y = socialcap)) +
+  geom_point() +
+  facet_wrap(~name) 
+
+ggsave(here("outputs", "social_cap_cnty.png"), height = 8, width = 6)
+```
+
+```{r}
+dd <- dd %>%
+  filter(!is.na(population_total)) %>%
+  mutate(opc = 1000 * opp_invcov_sum / population_total) %>%
+  mutate(opc_tier = ntile(opc, 5)) %>%
+  mutate(all_org = 1000 * all.orgs / population_total) %>%
+  mutate(org_tier = ntile(all_org, 5))
 ```
 
 # Visualize regression outputs 
