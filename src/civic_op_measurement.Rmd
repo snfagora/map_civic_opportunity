@@ -66,16 +66,8 @@ org_activites <- vroom(here("raw_data", "irs_org_activities.csv"))
 fips <- read_csv(here("raw_data", "fips_with_population.csv"), col_types = (ZCTA <- "c"))
 
 fips_cnts_invcov <- read_csv(here("raw_data", "fips_cnts_invcov.csv"))
-<<<<<<< HEAD
 
 fips_census_agg <- read_csv(here("raw_data", "census_fips_aggregate.csv"))
-=======
-
-# zcta (zip-code level)
-zcta <- read_csv(here("raw_data", "zcta_cnts.csv"), col_types = (ZCTA <- "c"))
-
-zcta_cnts_invcov <- read_csv(here("raw_data", "zcta_cnts_invcov.csv"))
->>>>>>> 19b9764805ec425ef0fa91a685ad1e5e0e64ea2b
 
 # social capital data 
 social_capital <- read_csv(here("raw_data", "social_capital.csv"))
@@ -197,9 +189,6 @@ ggsave(here("outputs", "unit_cor_plot.png"),
 ```
 
 # Link org and census data at the county level
-=======
-# Link org and census data 
->>>>>>> 19b9764805ec425ef0fa91a685ad1e5e0e64ea2b
 
 ```{r}
 # census meta data
@@ -256,7 +245,6 @@ county_class <- county_class %>%
 ```
 
 ```{r}
-<<<<<<< HEAD
 # prep for joining 
 names(fips_cnts_invcov)[1] <- "FIPS"
 
@@ -274,15 +262,6 @@ dd <- fips_cnts_invcov %>%
 
 # check the column names 
 head(dd)
-
-# 
-=======
-dd <- org_activites_mbf %>%
-  left_join(zcta) %>%
-  left_join(fips) %>%
-  left_join(census) %>%
-  left_join(county_class) 
->>>>>>> 19b9764805ec425ef0fa91a685ad1e5e0e64ea2b
 ```
 
 ```{r}
@@ -310,8 +289,6 @@ min(sum_county_zip$n) # 1 zip code in a county
 
 # Compare measures 
 
-<<<<<<< HEAD
-=======
 ```{r}
 names(fips_cnts_invcov)[1] <- "FIPS"
 
@@ -361,7 +338,6 @@ zcta_table %>%
 ggsave(here("outputs", "index_linearity_zcta.png"), height = 8, width = 6)
 ```
 
->>>>>>> 19b9764805ec425ef0fa91a685ad1e5e0e64ea2b
 ## FIPS
 
 ```{r}
@@ -401,10 +377,6 @@ joined_table <- fips_table %>%
   left_join(social_capital)
 ```
 
-<<<<<<< HEAD
-
-=======
->>>>>>> 19b9764805ec425ef0fa91a685ad1e5e0e64ea2b
 ```{r}
 png(height = 400, width = 400, 
     file = here("outputs", "joined_corr.png"), type = "cairo")
@@ -440,18 +412,7 @@ social_capital %>%
   facet_wrap(~name) 
 
 ggsave(here("outputs", "social_cap_cnty.png"), height = 8, width = 6)
-```
 
-```{r}
-<<<<<<< HEAD
-joined_table %>%
-  ggplot(aes(x = socialcap, y = opp_sum)) +
-  geom_point()
-```
-
-```{r}
-=======
->>>>>>> 19b9764805ec425ef0fa91a685ad1e5e0e64ea2b
 dd <- dd %>%
   filter(!is.na(population_total)) %>%
   mutate(opc = 1000 * opp_invcov_sum / population_total) %>%
