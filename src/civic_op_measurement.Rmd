@@ -100,10 +100,16 @@ org_activites_mbf <- org_activites %>%
 
 org_activites_mbf <- org_activites_mbf %>%
   mutate(website = ifelse(!is.na(take_action) | !is.na(volunteer) | !is.na(membership) | !is.na(events) | !is.na(resources) | !is.na(advocacy) | !is.na(services) | !is.na(chapters) | !is.na(board) | !is.na(press) | !is.na(donations), 1, 0)) %>%
-  distinct() %>%
-  dplyr::select(ein, state, city, zip, take_action, volunteer, membership, events, website)
+  dplyr::select(ein, state, city, zip, take_action, volunteer, membership, events, website) %>%
+  dplyr::distinct(ein, state, city, zip, take_action, volunteer, membership, events, website)
+```
 
-org_activites_mbf$website %>% sum() # 894,353
+```{r}
+subset(org_activites_mbf, take_action == 1)
+```
+
+```{r}
+org_activites_mbf$website %>% sum() # 844,892
 
 org_activites_mbf <- org_activites_mbf %>% 
   filter(website == 1) 
@@ -119,7 +125,7 @@ org_activites_mbf <- org_activites_mbf %>%
 org_activites_mbf$ZCTA <- substr(org_activites_mbf$zip, 1, 5)
 ```
 
-# Compare measures at the org level
+# Construct validity test at the org level
 
 * The following three measures are on a 0-1 scale. 
 
@@ -140,7 +146,6 @@ org_activites_mbf$opp_princomp <- prin_out$scores[,1] # the first factor
 write_csv(org_activites_mbf, here("processed_data", "org_measures.csv"))
 ```
 
-<<<<<<< HEAD
 ```{r}
 unit_cor_df <- org_activites_mbf %>%
   dplyr::select(take_action, volunteer, membership, events, opp_binary, opp_mean, opp_invcov, opp_princomp) %>%
@@ -191,15 +196,6 @@ ggsave(here("outputs", "unit_cor_plot.png"),
 # Link org and census data at the county level
 
 ```{r}
-# census meta data
-census <- census_detail %>%
-  inner_join(census_subject) %>%
-  rename(ZCTA = GEOID) %>%
-  mutate(race_per_white_nonhispanic = race_white_nonhispanic / population_total) %>%
-  mutate(college_educ = (education_attainment_some_col + education_attainment_bs + education_attainment_grad) / education_attainment_total) %>%
-  mutate(per_poverty = 1 - poverty_gt_150 / poverty_total) %>%
-  dplyr::select(ZCTA, population_total, race_per_white_nonhispanic, per_poverty, college_educ)
-
 # county classification
 county_class <- county_class %>%
   mutate(urban_suburban_rural = case_when(
@@ -262,83 +258,17 @@ dd <- fips_cnts_invcov %>%
 
 # check the column names 
 head(dd)
+
+# create the normalized index 
+
+dd <- dd %>%
+  filter(!is.na(population_total)) %>%
+  mutate(opc = 1000 * idx_sum / population_total) %>%
+  mutate(opc_tier = ntile(opc, 5)) %>%
+  mutate(all_org = 1000 * n / population_total)
 ```
 
-```{r}
-county_n <- length(unique(dd$FIPS))
-
-sum_county_zip <- dd %>%
-  group_by(FIPS, urban_suburban_rural) %>%
-  summarize(n = n()) %>%
-  mutate(freq = n / county_n)
-
-sum_county_zip %>%
-  ggplot(aes(x = n, fill = urban_suburban_rural)) +
-  geom_density(alpha = 0.3) +
-  labs(
-    y = "Count",
-    x = "The # of zip codes in a county",
-    fill = "Census urban-rural classification"
-  )
-ggsave(here("outputs", "zip_county_n.png"))
-
-max(sum_county_zip$n) # 290 zip codes in a county (LA county)
-
-min(sum_county_zip$n) # 1 zip code in a county
-```
-
-# Compare measures 
-
-```{r}
-names(fips_cnts_invcov)[1] <- "FIPS"
-
-social_capital$fips_n <- 
-  formatC(social_capital$fips_n, width = 5, format = "d", flag = "0")
-
-names(social_capital)[1] <- "FIPS"
-```
-
-## ZCTA 
-
-```{r}
-zcta_table <- dd %>%
-  select(ZCTA, FIPS, all.orgs, vol, mem, evt, act, volunteer, membership, events, take_action, opp_invcov, population_total) %>%
-  group_by(ZCTA) %>%
-  summarize(all_orgs = sum(all.orgs, na.rm = T), 
-            vol_sum = sum(volunteer, na.rm = T), 
-            mem_sum = sum(membership, na.rm = T),
-            evt_sum = sum(events, na.rm = T), 
-            act_sum = sum(take_action, na.rm = T), 
-            opp_sum = sum(opp_invcov, na.rm = T))
-
-names(zcta_cnts_invcov)[1] <- "ZCTA"
-
-png(height = 400, width = 400, 
-    file = here("outputs", "zcta_corr.png"), type = "cairo")
-
-zcta_table %>%
-  left_join(zcta_cnts_invcov) %>%
-  filter(!is.na(idx_sum)) %>% # why there are so many NSs?
-  select(where(is.numeric)) %>%
-  cor() %>%
-  corrplot(method = 'number',
-           order = "FPC",
-           tl.col="black")
-
-dev.off()
-
-zcta_table %>%
-  pivot_longer(c("mem_sum", "evt_sum", "act_sum", "vol_sum")) %>%
-  ggplot(aes(x = value, y = opp_sum)) +
-  geom_point() +
-  facet_wrap(~name) +
-  scale_x_log10() +
-  scale_y_log10()
-
-ggsave(here("outputs", "index_linearity_zcta.png"), height = 8, width = 6)
-```
-
-## FIPS
+# Discriminant validity test
 
 ```{r}
 fips_table <- dd %>%
@@ -412,13 +342,6 @@ social_capital %>%
   facet_wrap(~name) 
 
 ggsave(here("outputs", "social_cap_cnty.png"), height = 8, width = 6)
-
-dd <- dd %>%
-  filter(!is.na(population_total)) %>%
-  mutate(opc = 1000 * opp_invcov_sum / population_total) %>%
-  mutate(opc_tier = ntile(opc, 5)) %>%
-  mutate(all_org = 1000 * all.orgs / population_total) %>%
-  mutate(org_tier = ntile(all_org, 5))
 ```
 
 # Visualize regression outputs 
