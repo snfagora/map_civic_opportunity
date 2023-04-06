@@ -77,6 +77,8 @@ social_capital <- read_csv(here("raw_data", "social_capital.csv"))
 # other demographic data 
 census_detail <- read_csv(here("raw_data", "census_zcta_detail_data.csv"), col_types = (GEOID <- "c"))
 
+zcta_fips <- read_csv(here("raw_data", "zcta_cnts.csv"))
+
 census_subject <- read_csv(here("raw_data", "census_zcta_subject_data.csv"), col_types = (GEOID <- "c"))
 
 county_class <- read_csv(here("raw_data", "County_Classifications.csv"))
@@ -167,30 +169,30 @@ sd(unit_cor_df[,2] %>% unlist) # sd binary index
 sd(unit_cor_df[,3] %>% unlist) # sd mean index 
 sd(unit_cor_df[,4] %>% unlist) # sd inverse covariance matrix index 
 sd(unit_cor_df[,5] %>% unlist) # sd principal component first factor index
+```
 
-unit_cor_plot <- unit_cor_df %>%
+```{r}
+con_plot <- unit_cor_df %>%
   pivot_longer(matches("index")) %>%
-  ggplot(aes(y = name, x = value, 
+  ggplot(aes(x = name, y = value, 
              fill = term,
              label = round(value, 2))) +
   geom_col(position = "dodge") +
-  coord_flip() %>%
   labs(x = "",
-       y = "Pearson's correlaton coefficient",
-       fill = "Activity type",
-       label = "Activity type") +
-  scale_fill_viridis_d() +
+       y = "Correlaton coefficient",
+       fill = "Dimensions",
+       label = "Dimensions") +
+  scale_fill_viridis_d(begin = 0.2, end = 0.6) +
   guides(fill = guide_legend(nrow = 2, 
                              byrow = TRUE)) +
   geom_label(position = position_dodge(width = 0.9),
              col = "white",
-             show.legend = FALSE)
+             show.legend = FALSE) +
+  coord_flip() +
+  ylim(c(0,1)) +
+  theme(legend.position = "right")
 
-unit_cor_plot 
-
-ggsave(here("outputs", "unit_cor_plot.png"), 
-       height = 8, 
-       width = 7)
+con_plot 
 ```
 
 # Link org and census data at the county level
@@ -249,124 +251,80 @@ social_capital$fips_n <-
 
 names(social_capital)[1] <- "FIPS"
 
+cnts_counts <- select(org_activites_mbf, ZCTA, opp_mean) %>%
+  left_join(zcta_fips %>% select(ZCTA, FIPS)) %>%
+  select(-ZCTA) %>%
+  filter(!is.na(FIPS)) %>%
+  group_by(FIPS) %>%
+  summarize(n = n(),
+            mean_sum = sum(opp_mean))
+
+head(cnts_counts)
+```
+
+```{r}
+cnts_counts %>%
+  ggplot(aes(x = n, y = mean_sum)) +
+  geom_point() +
+  scale_x_log10() +
+  scale_y_log10()
+```
+
+```{r}
 # join the tables 
-dd <- fips_cnts_invcov %>%
+dd <- cnts_counts %>%
   left_join(fips) %>%
   left_join(fips_census_agg) %>%
   left_join(social_capital) %>%
   left_join(county_class) 
 
-# check the column names 
-head(dd)
-
 # create the normalized index 
 
 dd <- dd %>%
   filter(!is.na(population_total)) %>%
-  mutate(opc = 1000 * idx_sum / population_total) %>%
-  mutate(opc_tier = ntile(opc, 5)) %>%
+  mutate(opc = 1000 * mean_sum / population_total) %>%
+  mutate(opc_tile = ntile(opc, 5)) %>%
   mutate(all_org = 1000 * n / population_total)
 ```
 
 # Discriminant validity test
 
 ```{r}
-fips_table <- dd %>%
-  select(ZCTA, FIPS, all.orgs, vol, mem, evt, act, volunteer, membership, events, take_action, opp_invcov, population_total) %>%
-  group_by(FIPS) %>%
-  summarize(all_orgs = sum(all.orgs, na.rm = T), 
-            vol_sum = sum(volunteer, na.rm = T), 
-            mem_sum = sum(membership, na.rm = T),
-            evt_sum = sum(events, na.rm = T), 
-            act_sum = sum(take_action, na.rm = T), 
-            opp_sum = sum(opp_invcov, na.rm = T))
+disc_plot <- dd %>%
+  select(opc_tile, all_org, bonding, linking, bridging, socialcap) %>%
+  rename("Organizational density" = all_org,
+         "Bonding" = bonding, 
+         "Linking" = linking, 
+         "Bridging" = bridging, 
+         "Social Capital" = socialcap) %>%
+  correlate() %>%
+  shave() %>%
+  select(c(1:2)) %>%
+  slice(-1) %>%
+  ggplot(aes(x = term, y = opc_tile, label = round(opc_tile, 2))) +
+  geom_col() +
+  coord_flip() +
+  labs(x = "",
+       y = "Correlation coefficient \n with civic opportunity index") +
+  geom_label(col = "black",
+             show.legend = FALSE) +
+  ylim(c(0,1))
+```
 
-names(fips_cnts_invcov)[1] <- "FIPS"
+# Predictive validity 
+
+```{r}
+head(dd)
 ```
 
 ```{r}
-png(height = 400, width = 400, 
-    file = here("outputs", "fips_corr.png"), type = "cairo")
+corr_mod <- dd %>%
+  #group_by(urban_suburban_rural) %>%
+  do(tidy(standardize(lm_robust(formula = opc_tile ~ race_per_white_nonhispanic + per_poverty + college_educ, data = .))))
 
-fips_table %>%
-  left_join(fips_cnts_invcov) %>%
-  filter(!is.na(idx_sum)) %>% # why there are so many NSs?
-  select(where(is.numeric)) %>%
-  cor() %>%
-  corrplot(method = 'number',
-           order = "FPC",
-           tl.col="black")
-
-dev.off()
-```
-
-```{r}
-joined_table <- fips_table %>%
-  left_join(fips_cnts_invcov) %>%
-  filter(!is.na(idx_sum)) %>% # why there are so many NSs?
-  left_join(social_capital)
-```
-
-```{r}
-png(height = 400, width = 400, 
-    file = here("outputs", "joined_corr.png"), type = "cairo")
-
-joined_table %>%
-  filter(!is.na(idx_sum)) %>%
-  filter(!is.na(socialcap)) %>%
-  select(c(names(fips_table), "bridging", "bonding", "linking", "socialcap")) %>%
-  select(where(is.numeric)) %>%
-  cor() %>%
-  corrplot(method = 'number')
-
-dev.off()
-```
-
-```{r}
-joined_table %>%
-  pivot_longer(c("mem_sum", "evt_sum", "act_sum", "vol_sum")) %>%
-  ggplot(aes(x = value, y = opp_sum)) +
-  geom_point() +
-  facet_wrap(~name) +
-  scale_x_log10() +
-  scale_y_log10()
-
-ggsave(here("outputs", "index_linearity_cnty.png"), height = 8, width = 6)
-```
-
-```{r}
-social_capital %>%
-  pivot_longer(c("bridging", "bonding", "linking")) %>%
-  ggplot(aes(x = value, y = socialcap)) +
-  geom_point() +
-  facet_wrap(~name) 
-
-ggsave(here("outputs", "social_cap_cnty.png"), height = 8, width = 6)
-```
-
-# Visualize regression outputs 
-
-```{r}
-library(MASS)
-
-corr_sum <- dd %>%
-  group_by(urban_suburban_rural, FIPS) %>%
-  summarize(
-    opct = mean(opc_tier, na.rm = T),
-    orgt = mean(all_org, na.rm = T),
-    white = mean(race_per_white_nonhispanic, na.rm = T),
-    poverty = mean(per_poverty, na.rm = T),
-    educ = mean(college_educ, na.rm = T),
-    pop = mean(TotalPopEst2019, na.rm = T)
-  )
-```
-
-```{r}
-corr_mod <- corr_sum %>%
-  do(tidy(standardize(lm_robust(formula = opct ~ white + poverty + educ, data = ., weight = pop))))
-
-corr_mod_rc <- corr_sum %>%
-  do(tidy(standardize(lm_robust(formula = orgt ~ white + poverty + educ, data = ., weight = pop))))
+corr_mod_rc <- dd %>%
+  #group_by(urban_suburban_rural) %>%
+  do(tidy(standardize(lm_robust(formula = all_org ~ race_per_white_nonhispanic + per_poverty + college_educ, data = .))))
 
 corr_mod_bind <- bind_rows(
   mutate(corr_mod, DV = "Civic opportunity index"),
@@ -375,165 +333,38 @@ corr_mod_bind <- bind_rows(
 ```
 
 ```{r}
-between_counties_plot <- corr_mod_bind %>%
-  mutate(term = recode(term,
-    "white" = "Non-hispanic white",
-    "poverty" = "Federal poverty level",
-    "educ" = "College educated"
-  )) %>%
-  filter(!str_detect(term, "(Intercept)")) %>%
-  ggplot(aes(x = urban_suburban_rural)) +
-  geom_col(aes(y = estimate, fill = DV), position = "dodge", alpha = 0.8) +
-  geom_errorbar(aes(ymax = conf.high, ymin = conf.low, fill = DV), position = "dodge") +
-  geom_hline(yintercept = 0, linetype = "dashed", col = "red") +
-  labs(
-    x = "",
-    y = "Estimated coefficient",
-    title = "Between counties",
-    subtitle = "Aggregated zip code-level observations by county",
-    fill = "Type"
-  ) +
-  scale_fill_viridis_d(option = "rocket", begin = 0.2, end = 0.8) +
-  facet_wrap(~term, ncol = 2) +
-  guides(fill = guide_legend(nrow = 2, byrow = TRUE))
-
-between_counties_plot
-
-ggsave(here("outputs", "btw_counties.png"), width = 8, height = 8)
-```
-
-```{r}
-between_counties_plot + labs(title = "Between regions")
-
-ggsave(here("outputs", "btw_regions.png"), width = 8, height = 8)
-```
-
-```{r}
-dd_lm <- dd %>%
-  filter(urban_suburban_rural == "Urban") %>%
-  slice_max(order_by = TotalPopEst2019, prop = 0.50) %>%
-  group_by(FIPS) %>%
-  do(tidy(standardize(lm_robust(formula = opc_tier ~ race_per_white_nonhispanic + per_poverty + college_educ, data = ., weight = TotalPopEst2019))))
-
-dd_lm_mean <- dd_lm %>%
-  ungroup() %>%
-  group_by(term) %>%
-  summarize(ggplot2::mean_cl_boot(estimate))
-
-dd_lm_rc <- dd %>%
-  filter(urban_suburban_rural == "Urban") %>%
-  slice_max(order_by = TotalPopEst2019, prop = 0.50) %>%
-  group_by(FIPS) %>%
-  do(tidy(standardize(lm_robust(formula = org_tier ~ race_per_white_nonhispanic + per_poverty + college_educ, data = ., weight = TotalPopEst2019))))
-
-dd_lm_rc_mean <- dd_lm_rc %>%
-  ungroup() %>%
-  group_by(term) %>%
-  summarize(ggplot2::mean_cl_boot(estimate))
-
-dd_lm_bind <- bind_rows(
-  mutate(dd_lm_mean, Type = "Civic opportunity index"),
-  mutate(dd_lm_rc_mean, Type = "Organizational density")
-)
-```
-
-```{r}
-within_counties_plot <- dd_lm_bind %>%
-  filter(!str_detect(term, "(Intercept)")) %>%
+pred_plot <- corr_mod_bind %>%
   mutate(term = recode(term,
     "race_per_white_nonhispanic" = "Non-hispanic white",
     "per_poverty" = "Federal poverty level",
     "college_educ" = "College educated"
   )) %>%
-  mutate(term = str_wrap(term, width = 10)) %>%
+  filter(!str_detect(term, "(Intercept)")) %>%
   ggplot(aes(x = term)) +
-  geom_col(aes(y = y, fill = Type), position = "dodge", alpha = 0.8) +
-  geom_errorbar(aes(ymax = ymax, ymin = ymin, fill = Type), position = "dodge") +
-  #  geom_jitter(aes(y = estimate, col = Type), alpha = 0.2) +
+  geom_text_repel(aes(y = estimate, label = round(estimate, 2), fill = DV, size = 1.5), 
+             position = position_dodge(width = 0.9),
+             col = "black",
+             show.legend = FALSE) +
+  geom_col(aes(y = estimate, fill = DV), position = "dodge", alpha = 0.5) +
+  geom_errorbar(aes(ymax = estimate + std.error, ymin = estimate - std.error, fill = DV), position = "dodge") +
   geom_hline(yintercept = 0, linetype = "dashed", col = "red") +
-  #  coord_flip() +
   labs(
-    title = "Within urban counties",
-    subtitle = glue("50% of top zip codes by \n the 2019 population from urban counties"),
     x = "",
-    y = "Average estimated coefficient"
+    y = "Estimated coefficient",
+    fill = "Predictors"
   ) +
-  scale_fill_viridis_d(option = "rocket", begin = 0.2, end = 0.8) +
-  guides(fill = guide_legend(nrow = 2, byrow = TRUE))
-
-within_counties_plot
-
-ggsave(here("outputs", "within_counties.png"))
+  scale_fill_viridis_d(begin = 0.2, end = 0.6) +
+  #facet_wrap(~term, ncol = 2) +
+  guides(fill = guide_legend(nrow = 2, byrow = TRUE)) +
+  coord_flip() +
+  theme(legend.position = "right")
 ```
 
-We regressed the civic opportunity index on the college-educated rate, non-Hispanic white rate, and federal poverty level, using robust standard errors. Observations were weighted by the 2019 estimated population variable from the Census. All coefficients were standardized to allow for comparison of independent variables. As a comparison, we applied the same regression model to organizational density, defined as the number of organizations per 1,000 people in a zipcode.
-
-In the left panel, we divided the data based on urban, suburban, and rural classifications, calculated the mean of zipcode-level observations in each county, and estimated and averaged the relationship between response and predictor variables. This helps to compare county variations within each region. In the right panel, we estimated the relationship between response and predictor variables at the zipcode level in urban counties, where there are a sufficient number of observations (zipcodes), and averaged these coefficients. The error bars indicate the 95% confidence intervals
+# Put them all
 
 ```{r}
-between_counties_plot + within_counties_plot + plot_annotation(tag_level = "A")
+con_plot / disc_plot / pred_plot +  plot_annotation(tag_level = "A")
 
-ggsave(here("outputs", "county_desc_unit_diff.png"), height = 8, width = 10)
-```
-
-```{r}
-# dd_opc <- dd %>%
-#   filter(!is.na(opc_tier)) %>%
-#   pivot_longer(
-#     cols = c("race_per_white_nonhispanic", "per_poverty", "college_educ"),
-#     names_to = "name",
-#     values_to = "value"
-#   )
-# 
-# dd_opc_sum <- dd_opc %>%
-#   group_by(urban_suburban_rural, opc_tier, name) %>%
-#   summarize(ggplot2::mean_cl_boot(value))
-# 
-# opc_region_plot <- dd_opc_sum %>%
-#   left_join(dd_opc) %>%
-#   ggplot(aes(x = opc_tier)) +
-#   geom_line(method = "lm", aes(y = y, fill = urban_suburban_rural)) +
-#   geom_ribbon(aes(ymax = ymax, ymin = ymin, fill = urban_suburban_rural)) +
-#   geom_jitter(aes(y = value, col = urban_suburban_rural), alpha = 0.01) +
-#   facet_wrap(~name) +
-#   labs(
-#     y = "Pct (%)",
-#     x = "Civic opportunity index",
-#     fill = "Census classification",
-#     col = "Census classification"
-#   )
-```
-
-```{r}
-# dd_org <- dd %>%
-#   filter(!is.na(org_tier)) %>%
-#   pivot_longer(
-#     cols = c("race_per_white_nonhispanic", "per_poverty", "college_educ"),
-#     names_to = "name",
-#     values_to = "value"
-#   )
-# 
-# dd_org_sum <- dd_org %>%
-#   group_by(urban_suburban_rural, org_tier, name) %>%
-#   summarize(ggplot2::mean_cl_boot(value))
-# 
-# org_region_plot <- dd_org_sum %>%
-#   left_join(dd_org) %>%
-#   ggplot(aes(x = org_tier)) +
-#   geom_line(aes(y = y, fill = urban_suburban_rural)) +
-#   geom_ribbon(aes(ymax = ymax, ymin = ymin, fill = urban_suburban_rural)) +
-#   geom_jitter(aes(y = value, col = urban_suburban_rural), alpha = 0.01) +
-#   facet_wrap(~name) +
-#   labs(
-#     y = "Pct (%)",
-#     x = "Organizational density",
-#     fill = "Census classification",
-#     col = "Census classification"
-#   )
-```
-
-```{r}
-# opc_region_plot + org_region_plot + plot_annotation(tag_level = "A")
-
-# ggsave(here("outputs", "county_desc.png"), height = 8, width = 15)
+ggsave(here("outputs", "measurement_validation.png"), height = 10, 
+       width = 10)
 ```
