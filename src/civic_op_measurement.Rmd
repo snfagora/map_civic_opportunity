@@ -61,6 +61,7 @@ mbf <- vroom(here("raw_data", "irs_mbf.csv"))
 
 # org activities from the websites and elsewhere 
 org_activites <- vroom(here("raw_data", "irs_org_activities.csv"))
+irs_activities <- vroom(here("raw_data","irs_nonweb_activities.csv"))
 
 # fips (county-level)
 fips <- read_csv(here("raw_data", "fips_with_population.csv"), col_types = (ZCTA <- "c"))
@@ -95,7 +96,11 @@ names(county_class)[1] <- "FIPS"
 - The new definition: It follows the basic structure laid out in the old definition but places more weight on new information. For instance, most civic organizations provide membership (less weight), but only a few offer opportunities to take action (more weight).
 
 ```{r}
-org_activites_mbf <- org_activites %>% 
+org_activities_combined <- org_activities %>% 
+  left_join(irs_activities) %>% 
+  mutate(volunteer = if_else(volunteer_text==1,1,volunteer, membership = if_else(member_text==1,1,membership)))
+
+org_activites_mbf <- org_activites_combined %>% 
   left_join(mbf %>% dplyr::select(ein, state, city, zip))
 
 # Assumption: if any of the following variable has a non-NA value, the data come the organizations' websites. 
@@ -116,7 +121,8 @@ org_activites_mbf$website %>% sum() # 844,892
 org_activites_mbf <- org_activites_mbf %>% 
   filter(website == 1) 
 
-# Milan, I learned from you that this assumption is incorrect. Some of the activity values were detected through the IRS, rather than through the organizations' website data. Please make the necessary correction.
+# Milan, I learned from you that this assumption is incorrect. Some of the activity values were detected through the IRS, rather than through the organizations' website data. Please make the necessary correction. 
+# Jae, see addition of irs_activities above
 
 nrow(org_activites_mbf)
 
@@ -251,13 +257,26 @@ social_capital$fips_n <-
 
 names(social_capital)[1] <- "FIPS"
 
-cnts_counts <- select(org_activites_mbf, ZCTA, opp_mean) %>%
-  left_join(zcta_fips %>% select(ZCTA, FIPS)) %>%
-  select(-ZCTA) %>%
-  filter(!is.na(FIPS)) %>%
-  group_by(FIPS) %>%
-  summarize(n = n(),
-            mean_sum = sum(opp_mean))
+#
+#cnts_counts <- select(org_activites_mbf, ZCTA, opp_mean) %>%
+#  left_join(zcta_fips %>% select(ZCTA, FIPS)) %>%
+#  select(-ZCTA) %>%
+#  filter(!is.na(FIPS)) %>%
+#  group_by(FIPS) %>%
+#  summarize(n = n(),
+#            mean_sum = sum(opp_mean))
+
+# This does three things
+# 1. It filters out organizations that only have a PO Box. Those are true organizations but perhaps not true geolocations
+# 2. It combines organizations have have the same IRS group value in the same geography
+# 3. It uses the FIPS derived from the latitude and longitude
+cnts_counts <- org_activities_mbf %>% 
+  rename(FIPS=fips)
+  filter(is_po != 1) %>% 
+  group_by(FIPS,grouping_value) %>% 
+  summarise(m=max(idx_var, na.rm=T)) %>% 
+  group_by(FIPS) %>% 
+  summarise(n=n(), mean_sum=sum(m))
 
 head(cnts_counts)
 ```
