@@ -1,4 +1,4 @@
-$)C---
+---
 title: "Civic opportunity measurement"
 author: "Jae Yeon Kim"
 date: "`r Sys.Date()`"
@@ -66,12 +66,12 @@ irs_activities <- vroom(here("raw_data","irs_nonweb_activities.csv"))
 # fips (county-level)
 fips <- read_csv(here("raw_data", "fips_with_population.csv"), col_types = (ZCTA <- "c"))
 
-fips_cnts_invcov <- read_csv(here("raw_data", "fips_cnts_invcov.csv"))
-
 fips_census_agg <- read_csv(here("raw_data", "census_fips_aggregate.csv"))
 
 # social capital data 
 social_capital <- read_csv(here("raw_data", "social_capital.csv"))
+
+# Milan: po box related data 
 ```
 
 ```{r}
@@ -96,35 +96,37 @@ names(county_class)[1] <- "FIPS"
 - The new definition: It follows the basic structure laid out in the old definition but places more weight on new information. For instance, most civic organizations provide membership (less weight), but only a few offer opportunities to take action (more weight).
 
 ```{r}
-org_activities_combined <- org_activities %>% 
-  left_join(irs_activities) %>% 
-  mutate(volunteer = if_else(volunteer_text==1,1,volunteer, membership = if_else(member_text==1,1,membership)))
+org_activities_combined <- irs_activities %>% 
+  left_join(org_activites) %>% 
+  mutate(
+    volunteer = ifelse(volunteer_text == 1, 1, volunteer), 
+    membership = ifelse(member_text == 1, 1, membership)
+    )
+```
 
-org_activites_mbf <- org_activites_combined %>% 
-  left_join(mbf %>% dplyr::select(ein, state, city, zip))
+```{r}
+org_activities_mbf <- org_activities_combined %>% 
+  left_join(mbf %>% dplyr::select(ein, state, city, zip)) %>%
+  filter(is_po != 1) # PO BOX
+```
 
+```{r}
 # Assumption: if any of the following variable has a non-NA value, the data come the organizations' websites. 
 
-org_activites_mbf <- org_activites_mbf %>%
+org_activities_mbf <- org_activities_mbf %>%
+  
   mutate(website = ifelse(!is.na(take_action) | !is.na(volunteer) | !is.na(membership) | !is.na(events) | !is.na(resources) | !is.na(advocacy) | !is.na(services) | !is.na(chapters) | !is.na(board) | !is.na(press) | !is.na(donations), 1, 0)) %>%
+  
   dplyr::select(ein, state, city, zip, take_action, volunteer, membership, events, website) %>%
-  dplyr::distinct(ein, state, city, zip, take_action, volunteer, membership, events, website)
+  dplyr::distinct(ein, state, city, zip, take_action, volunteer, membership, events, website) 
 ```
 
-```{r}
-subset(org_activites_mbf, take_action == 1)
-```
 
 ```{r}
-org_activites_mbf$website %>% sum() # 844,892
+org_activites_mbf$website %>% sum() # 894,335
 
 org_activites_mbf <- org_activites_mbf %>% 
   filter(website == 1) 
-
-# Milan, I learned from you that this assumption is incorrect. Some of the activity values were detected through the IRS, rather than through the organizations' website data. Please make the necessary correction. 
-# Jae, see addition of irs_activities above
-
-nrow(org_activites_mbf)
 
 org_activites_mbf <- org_activites_mbf %>%
   replace_na(list(take_action = 0, volunteer = 0, membership = 0, events = 0))
@@ -250,8 +252,6 @@ county_class <- county_class %>%
 
 ```{r}
 # prep for joining 
-names(fips_cnts_invcov)[1] <- "FIPS"
-
 social_capital$fips_n <- 
   formatC(social_capital$fips_n, width = 5, format = "d", flag = "0")
 
@@ -270,13 +270,14 @@ names(social_capital)[1] <- "FIPS"
 # 1. It filters out organizations that only have a PO Box. Those are true organizations but perhaps not true geolocations
 # 2. It combines organizations have have the same IRS group value in the same geography
 # 3. It uses the FIPS derived from the latitude and longitude
+
 cnts_counts <- org_activities_mbf %>% 
-  rename(FIPS=fips)
-  filter(is_po != 1) %>% 
-  group_by(FIPS,grouping_value) %>% 
-  summarise(m=max(idx_var, na.rm=T)) %>% 
+  rename(FIPS = fips) %>%
+  #filter(is_po != 1) %>% 
+  group_by(FIPS, grouping_value) %>% 
+  summarise(m = max(opp_mean, na.rm = T)) %>% # Milan: this should be the average of the binary dimenisons. 
   group_by(FIPS) %>% 
-  summarise(n=n(), mean_sum=sum(m))
+  summarise(n = n(), mean_sum = sum(m))
 
 head(cnts_counts)
 ```
