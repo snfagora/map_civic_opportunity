@@ -61,17 +61,22 @@ mbf <- vroom(here("raw_data", "irs_mbf.csv"))
 
 # org activities from the websites and elsewhere 
 org_activites <- vroom(here("raw_data", "irs_org_activities.csv"))
+
 irs_activities <- vroom(here("raw_data","irs_nonweb_activities.csv"))
 
-# fips (county-level)
+irs_nonweb_activities <- vroom(here("raw_data", "irs_nonweb_activities.csv"))
+
+# FIPS (county-level)
 fips <- read_csv(here("raw_data", "fips_with_population.csv"), col_types = (ZCTA <- "c"))
 
+# FIPS-level other census details
 fips_census_agg <- read_csv(here("raw_data", "census_fips_aggregate.csv"))
 
-# social capital data 
+# social capital data (county-level)
 social_capital <- read_csv(here("raw_data", "social_capital.csv"))
 
-# Milan: po box related data 
+# PO BOX status 
+po_status <- read_csv(here("raw_data", "irs_po_status.csv"))
 ```
 
 ```{r}
@@ -106,8 +111,12 @@ org_activities_combined <- irs_activities %>%
 
 ```{r}
 org_activities_mbf <- org_activities_combined %>% 
-  left_join(mbf %>% dplyr::select(ein, state, city, zip)) %>%
+  left_join(mbf %>% dplyr::select(ein, state, city, zip, irs_group)) %>%
+  mutate(grouping_value = if_else(irs_group != '0000', irs_group, ein)) %>%
+  left_join(po_status) %>%
   filter(is_po != 1) # PO BOX
+
+nrow(org_activities_mbf)
 ```
 
 ```{r}
@@ -117,22 +126,43 @@ org_activities_mbf <- org_activities_mbf %>%
   
   mutate(website = ifelse(!is.na(take_action) | !is.na(volunteer) | !is.na(membership) | !is.na(events) | !is.na(resources) | !is.na(advocacy) | !is.na(services) | !is.na(chapters) | !is.na(board) | !is.na(press) | !is.na(donations), 1, 0)) %>%
   
-  dplyr::select(ein, state, city, zip, take_action, volunteer, membership, events, website) %>%
-  dplyr::distinct(ein, state, city, zip, take_action, volunteer, membership, events, website) 
+  dplyr::select(ein, state, city, zip, take_action, volunteer, membership, events, website, grouping_value)
 ```
 
 
 ```{r}
-org_activites_mbf$website %>% sum() # 894,335
+org_activities_mbf$website %>% sum() # 682,985
 
-org_activites_mbf <- org_activites_mbf %>% 
+org_activities_mbf <- org_activities_mbf %>% 
   filter(website == 1) 
 
-org_activites_mbf <- org_activites_mbf %>%
+org_activities_mbf <- org_activities_mbf %>%
   replace_na(list(take_action = 0, volunteer = 0, membership = 0, events = 0))
 
 # the first 5 digits
-org_activites_mbf$ZCTA <- substr(org_activites_mbf$zip, 1, 5)
+org_activities_mbf$ZCTA <- substr(org_activities_mbf$zip, 1, 5)
+```
+
+```{r}
+nonweb_eins <- irs_nonweb_activities %>%
+    rename(volunteer = volunteer_text, 
+           membership = member_text) %>%
+    select(ein, volunteer, membership) %>%
+    replace_na(list(volunteer = 0, membership = 0)) %>%
+    filter(volunteer == 1 | membership == 1) %>% 
+    pull(ein)
+
+org_activities_mbf$nonweb <- org_activities_mbf$ein %in% nonweb_eins
+
+org_activities_mbf %>%
+  mutate(web = ifelse(nonweb == FALSE | nonweb == TRUE & take_action == 1 | nonweb == TRUE & events == 1, TRUE, FALSE)) %>%
+  mutate(status = as.numeric(nonweb) + as.numeric(web)) %>%
+  mutate(status = ifelse(status == 2, "Both",
+                         ifelse(status == 1 & web == TRUE, "Web",
+                                ifelse(status == 1 & nonweb == TRUE, "IRS", NA)))) %>%
+  group_by(status) %>%
+  summarize(n = n()) %>%
+  mutate(freq = n/sum(n))
 ```
 
 # Construct validity test at the org level
@@ -142,22 +172,22 @@ org_activites_mbf$ZCTA <- substr(org_activites_mbf$zip, 1, 5)
 * The objective of this exercise is to test the construct validity. This refers to the extent to which the instrument measures what it claims to measure in theory.
 
 ```{r}
-org_activites_mbf <- org_activites_mbf %>%
+org_activities_mbf <- org_activities_mbf %>%
   mutate(opp_binary = ifelse(volunteer == 1 | membership == 1 | take_action == 1 | events == 1, 1, 0)) %>% 
   mutate(
     opp_mean = idx_mean(volunteer, membership, take_action, events), # mean
     opp_invcov = idx_invcov(volunteer, membership, take_action, events) # inverse covariance matrix
   ) 
 
-prin_out <- princomp(~volunteer + membership + take_action + events, data = org_activites_mbf)
+prin_out <- princomp(~volunteer + membership + take_action + events, data = org_activities_mbf)
 
-org_activites_mbf$opp_princomp <- prin_out$scores[,1] # the first factor 
+org_activities_mbf$opp_princomp <- prin_out$scores[,1] # the first factor 
 
-write_csv(org_activites_mbf, here("processed_data", "org_measures.csv"))
+write_csv(org_activities_mbf, here("processed_data", "org_measures.csv"))
 ```
 
 ```{r}
-unit_cor_df <- org_activites_mbf %>%
+unit_cor_df <- org_activities_mbf %>%
   dplyr::select(take_action, volunteer, membership, events, opp_binary, opp_mean, opp_invcov, opp_princomp) %>%
   rename("Taking action" = take_action,
          "Volunteering" = volunteer, 
@@ -258,7 +288,7 @@ social_capital$fips_n <-
 names(social_capital)[1] <- "FIPS"
 
 #
-#cnts_counts <- select(org_activites_mbf, ZCTA, opp_mean) %>%
+#cnts_counts <- select(org_activities_mbf, ZCTA, opp_mean) %>%
 #  left_join(zcta_fips %>% select(ZCTA, FIPS)) %>%
 #  select(-ZCTA) %>%
 #  filter(!is.na(FIPS)) %>%
@@ -272,22 +302,14 @@ names(social_capital)[1] <- "FIPS"
 # 3. It uses the FIPS derived from the latitude and longitude
 
 cnts_counts <- org_activities_mbf %>% 
-  rename(FIPS = fips) %>%
-  #filter(is_po != 1) %>% 
+  left_join(zcta_fips %>% select(ZCTA, FIPS)) %>%
+  select(-ZCTA) %>%  
+  #rename(FIPS = fips) %>%
   group_by(FIPS, grouping_value) %>% 
-  summarise(m = max(opp_mean, na.rm = T)) %>% # Milan: this should be the average of the binary dimenisons. 
+  summarise(m = max(opp_mean, na.rm = T)) %>%
   group_by(FIPS) %>% 
-  summarise(n = n(), mean_sum = sum(m))
-
-head(cnts_counts)
-```
-
-```{r}
-cnts_counts %>%
-  ggplot(aes(x = n, y = mean_sum)) +
-  geom_point() +
-  scale_x_log10() +
-  scale_y_log10()
+  summarise(n = n(), 
+            mean_sum = sum(m))
 ```
 
 ```{r}
@@ -299,7 +321,6 @@ dd <- cnts_counts %>%
   left_join(county_class) 
 
 # create the normalized index 
-
 dd <- dd %>%
   filter(!is.na(population_total)) %>%
   mutate(opc = 1000 * mean_sum / population_total) %>%
@@ -378,6 +399,8 @@ pred_plot <- corr_mod_bind %>%
   guides(fill = guide_legend(nrow = 2, byrow = TRUE)) +
   coord_flip() +
   theme(legend.position = "right")
+
+pred_plot
 ```
 
 # Put them all
