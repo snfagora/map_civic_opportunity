@@ -25,7 +25,8 @@ pacman::p_load(
   callr,
   vroom,
   naniar,
-  modelsummary
+  modelsummary,
+  gt
   #ltm # point-biserial correlation
 )
 
@@ -116,6 +117,7 @@ org_activities_mbf <- org_activities_combined %>%
   left_join(po_status) %>%
   filter(is_po != 1) # PO BOX
 
+nrow(org_activities_combined)
 nrow(org_activities_mbf)
 ```
 
@@ -134,7 +136,7 @@ org_activities_mbf <- org_activities_mbf %>%
 org_activities_mbf$website %>% sum() # 682,985
 
 org_activities_mbf <- org_activities_mbf %>% 
-  filter(website == 1) 
+  filter(website == 1) # this includes both websites and IRS
 
 org_activities_mbf <- org_activities_mbf %>%
   replace_na(list(take_action = 0, volunteer = 0, membership = 0, events = 0))
@@ -203,6 +205,10 @@ unit_cor_df <- org_activities_mbf %>%
          "Inverse covariance matrix index", 
          "Principal component first factor index"))
 
+unit_cor_df
+```
+
+```{r}
 sd(unit_cor_df[,2] %>% unlist) # sd binary index   
 sd(unit_cor_df[,3] %>% unlist) # sd mean index 
 sd(unit_cor_df[,4] %>% unlist) # sd inverse covariance matrix index 
@@ -212,25 +218,30 @@ sd(unit_cor_df[,5] %>% unlist) # sd principal component first factor index
 ```{r}
 con_plot <- unit_cor_df %>%
   pivot_longer(matches("index")) %>%
-  ggplot(aes(x = name, y = value, 
-             fill = term,
+  ggplot(aes(x = term, y = name, 
+             fill = value,
              label = round(value, 2))) +
-  geom_col(position = "dodge") +
+  geom_tile() +
   labs(x = "",
-       y = "Correlaton coefficient",
-       fill = "Dimensions",
-       label = "Dimensions") +
-  scale_fill_viridis_d(begin = 0.2, end = 0.6) +
-  guides(fill = guide_legend(nrow = 2, 
-                             byrow = TRUE)) +
-  geom_label(position = position_dodge(width = 0.9),
-             col = "white",
+       y = "",
+       fill = "Correlation coefficients",
+       label = "Correlation coefficients") +
+  scale_fill_gradient2(low = "white", high = "green", 
+                       midpoint = 0.5, limit = c(0,1), 
+                       space = "Lab") +
+  #guides(fill = guide_legend(nrow = 2, byrow = TRUE)) +
+  geom_label(col = "black",
              show.legend = FALSE) +
-  coord_flip() +
-  ylim(c(0,1)) +
-  theme(legend.position = "right")
+  #coord_flip() +
+  #ylim(c(0,1)) +
+  theme(legend.position = "right") +
+  scale_x_discrete(guide = guide_axis(n.dodge = 2)) 
+```
 
+```{r}
 con_plot 
+
+ggsave(here("outputs", "con_plot.png"))
 ```
 
 # Link org and census data at the county level
@@ -328,6 +339,31 @@ dd <- dd %>%
   mutate(all_org = 1000 * n / population_total)
 ```
 
+```{r}
+dd %>%
+  group_by(urban_suburban_rural) %>% 
+  summarize(mean_opc = mean(opc_tile, na.rm = T),
+            sd = sd(opc_tile, na.rm = T))
+```
+
+```{r}
+dd %>%
+  group_by(State, urban_suburban_rural) %>% 
+  summarize(mean_opc = mean(opc_tile, na.rm = T),
+            sd = sd(opc_tile, na.rm = T)) %>%
+  filter(urban_suburban_rural == "Urban") %>%
+  arrange(desc(mean_opc))
+```
+
+```{r}
+dd %>%
+  group_by(State, urban_suburban_rural) %>% 
+  summarize(mean_opc = mean(opc_tile, na.rm = T),
+            sd = sd(opc_tile, na.rm = T)) %>%
+  filter(urban_suburban_rural == "Rural") %>%
+  arrange(desc(mean_opc))
+```
+
 # Discriminant validity test
 
 ```{r}
@@ -342,7 +378,7 @@ disc_plot <- dd %>%
   shave() %>%
   select(c(1:2)) %>%
   slice(-1) %>%
-  ggplot(aes(x = term, y = opc_tile, label = round(opc_tile, 2))) +
+  ggplot(aes(x = fct_reorder(term, opc_tile), y = opc_tile, label = round(opc_tile, 2))) +
   geom_col() +
   coord_flip() +
   labs(x = "",
@@ -350,6 +386,26 @@ disc_plot <- dd %>%
   geom_label(col = "black",
              show.legend = FALSE) +
   ylim(c(0,1))
+```
+
+```{r}
+disc_table <- dd %>%
+  select(opc_tile, all_org, bonding, linking, bridging, socialcap) %>%
+  rename("Organizational density" = all_org,
+         "Bonding" = bonding, 
+         "Linking" = linking, 
+         "Bridging" = bridging, 
+         "Social Capital" = socialcap) %>%
+  correlate() %>%
+  shave() %>%
+  select(c(1:2)) %>%
+  slice(-1) %>%
+  arrange(desc(opc_tile)) %>%
+  rename("Measures" = term, 
+         "Corrleation coefficient" = opc_tile) %>%
+  gt()
+
+gtsave(disc_table, here("outputs", "disc_table.docx"))
 ```
 
 # Predictive validity 
@@ -360,11 +416,11 @@ head(dd)
 
 ```{r}
 corr_mod <- dd %>%
-  #group_by(urban_suburban_rural) %>%
-  do(tidy(standardize(lm_robust(formula = opc_tile ~ race_per_white_nonhispanic + per_poverty + college_educ, data = .))))
+  #group_by(State) %>%
+  do(tidy(standardize(lm_robust(formula = opc_tile ~ race_per_white_nonhispanic + per_poverty + college_educ, data = .)))) # Here standardize refers to refitting the model with standardized data (https://cran.r-project.org/web/packages/effectsize/vignettes/effectsize.html) z-scoring
 
 corr_mod_rc <- dd %>%
-  #group_by(urban_suburban_rural) %>%
+  #group_by(State) %>%
   do(tidy(standardize(lm_robust(formula = all_org ~ race_per_white_nonhispanic + per_poverty + college_educ, data = .))))
 
 corr_mod_bind <- bind_rows(
@@ -386,21 +442,23 @@ pred_plot <- corr_mod_bind %>%
              position = position_dodge(width = 0.9),
              col = "black",
              show.legend = FALSE) +
-  geom_col(aes(y = estimate, fill = DV), position = "dodge", alpha = 0.5) +
-  geom_errorbar(aes(ymax = estimate + std.error, ymin = estimate - std.error, fill = DV), position = "dodge") +
+  geom_col(aes(y = estimate, fill = DV), position = "dodge", alpha = 0.4) +
+  geom_errorbar(aes(ymax = estimate + std.error, ymin = estimate - std.error, fill = DV), position = "dodge", alpha = 0.4) +
   geom_hline(yintercept = 0, linetype = "dashed", col = "red") +
   labs(
     x = "",
-    y = "Estimated coefficient",
+    y = "Estimated regression coefficient",
     fill = "Predictors"
   ) +
-  scale_fill_viridis_d(begin = 0.2, end = 0.6) +
+  scale_fill_viridis_d(begin = 0.1, end = 0.9) +
   #facet_wrap(~term, ncol = 2) +
   guides(fill = guide_legend(nrow = 2, byrow = TRUE)) +
   coord_flip() +
-  theme(legend.position = "right")
+  theme(legend.position = "bottom") 
 
 pred_plot
+
+ggsave(here("outputs", "pred_plot.png"))
 ```
 
 # Put them all
