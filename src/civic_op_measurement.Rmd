@@ -1,4 +1,4 @@
----
+$)C---
 title: "Civic opportunity measurement"
 author: "Jae Yeon Kim"
 date: "`r Sys.Date()`"
@@ -64,8 +64,8 @@ mbf <- vroom(here("raw_data", "irs_mbf.csv"))
 org_activites <- vroom(here("raw_data", "irs_org_activities.csv"))
 
 irs_activities <- vroom(here("raw_data","irs_nonweb_activities.csv"))
-
-irs_nonweb_activities <- vroom(here("raw_data", "irs_nonweb_activities.csv"))
+irs_activities <- irs_activities %>%
+  replace_na(list(volunteer_text = 0, member_text = 0))
 
 # FIPS (county-level)
 fips <- read_csv(here("raw_data", "fips_with_population.csv"), col_types = (ZCTA <- "c"))
@@ -102,20 +102,19 @@ names(county_class)[1] <- "FIPS"
 - The new definition: It follows the basic structure laid out in the old definition but places more weight on new information. For instance, most civic organizations provide membership (less weight), but only a few offer opportunities to take action (more weight).
 
 ```{r}
-org_activities_combined <- irs_activities %>% 
-  left_join(org_activites) %>% 
-  mutate(
-    volunteer = ifelse(volunteer_text == 1, 1, volunteer), 
-    membership = ifelse(member_text == 1, 1, membership)
-    )
+ org_activities_combined <- irs_activities %>% 
+   left_join(org_activities) %>% 
+   mutate(
+     volunteer = ifelse(volunteer_text == 1, 1, volunteer), 
+     membership = ifelse(member_text == 1, 1, membership)
+     )
 ```
 
 ```{r}
 org_activities_mbf <- org_activities_combined %>% 
   left_join(mbf %>% dplyr::select(ein, state, city, zip, irs_group)) %>%
   mutate(grouping_value = if_else(irs_group != '0000', irs_group, ein)) %>%
-  left_join(po_status) %>%
-  filter(is_po != 1) # PO BOX
+  left_join(po_status) 
 
 nrow(org_activities_combined)
 nrow(org_activities_mbf)
@@ -128,15 +127,17 @@ org_activities_mbf <- org_activities_mbf %>%
   
   mutate(website = ifelse(!is.na(take_action) | !is.na(volunteer) | !is.na(membership) | !is.na(events) | !is.na(resources) | !is.na(advocacy) | !is.na(services) | !is.na(chapters) | !is.na(board) | !is.na(press) | !is.na(donations), 1, 0)) %>%
   
-  dplyr::select(ein, state, city, zip, take_action, volunteer, membership, events, website, grouping_value)
+  dplyr::select(ein, state, city, zip, take_action, volunteer, membership, events, website, grouping_value, is_po)
 ```
 
 
 ```{r}
+org_activities_mbf %>% group_by(is_po) %>% count(website)
 org_activities_mbf$website %>% sum() # 682,985
 
 org_activities_mbf <- org_activities_mbf %>% 
-  filter(website == 1) # this includes both websites and IRS
+  filter(website == 1) %>% # this includes both websites and IRS 
+  filter(is_po != 1) # PO BOX
 
 org_activities_mbf <- org_activities_mbf %>%
   replace_na(list(take_action = 0, volunteer = 0, membership = 0, events = 0))
