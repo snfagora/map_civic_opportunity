@@ -64,6 +64,8 @@ mbf <- vroom(here("raw_data", "irs_mbf.csv"))
 org_activites <- vroom(here("raw_data", "irs_org_activities.csv"))
 
 irs_activities <- vroom(here("raw_data","irs_nonweb_activities.csv"))
+irs_activities <- irs_activities %>%
+  replace_na(list(volunteer_text = 0, member_text = 0))
 
 # FIPS (county-level)
 fips <- read_csv(here("raw_data", "fips_with_population.csv"), col_types = (ZCTA <- "c"))
@@ -100,12 +102,12 @@ names(county_class)[1] <- "FIPS"
 - The new definition: It follows the basic structure laid out in the old definition but places more weight on new information. For instance, most civic organizations provide membership (less weight), but only a few offer opportunities to take action (more weight).
 
 ```{r}
-org_activities_combined <- irs_activities %>% 
-  left_join(org_activities) %>% 
-  mutate(
-    volunteer = ifelse(volunteer_text == 1, 1, volunteer), 
-    membership = ifelse(member_text == 1, 1, membership)
-    )
+ org_activities_combined <- irs_activities %>% 
+   left_join(org_activities) %>% 
+   mutate(
+     volunteer = ifelse(volunteer_text == 1, 1, volunteer), 
+     membership = ifelse(member_text == 1, 1, membership)
+     )
 ```
 
 ```{r}
