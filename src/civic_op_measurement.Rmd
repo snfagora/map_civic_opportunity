@@ -32,7 +32,8 @@ pacman::p_load(
   sf,
   tigris,
   tmap,
-  RColorBrewer
+  RColorBrewer,
+  usdata
 )
 
 devtools::install_github("graemeblair/stdidx")
@@ -535,6 +536,9 @@ sj <- sj %>%
   filter(!(STATEFP %in% c("02", "15", "60", "66", "69", "72", "78"))) # Sorry Alaska, Hawaii, and US Territories
 
 write_rds(sj, here("processed_data", "sj.rds"))
+
+sj_state <- tigris::states(cb = TRUE) %>%
+  filter(!(STATEFP %in% c("02", "15", "60", "66", "69", "72", "78"))) # Sorry Alaska, Hawaii, and US Territories
 ```
 
 ```{r}
@@ -574,7 +578,10 @@ combined_unique <- read_rds(here("processed_data", "combined_unique.rds"))
 my_palette <- RColorBrewer::brewer.pal(5, "Greens")
 
 # Create the map
-us_county_map <- tm_shape(sj) +
+us_county_map <- tm_shape(sj_state) +
+  tm_borders() +
+  tm_fill(col = "white") +
+  tm_shape(sj) +
   tm_borders() +
   tm_shape(combined_unique) +
   tm_polygons(
