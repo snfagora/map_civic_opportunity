@@ -35,10 +35,8 @@ pacman::p_load(
   RColorBrewer
 )
 
-devtools::install_github("hafen/housingData")
 devtools::install_github("graemeblair/stdidx")
 library(stdidx)
-library(housingData)
 
 options(es.use_symbols = TRUE) # get nice symbols
 
