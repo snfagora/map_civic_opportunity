@@ -28,10 +28,11 @@ pacman::p_load(
   modelsummary,
   gt,
   DT,
-  #ltm # point-biserial correlation
-  sf, 
-  tigris, 
-  tmap
+  # ltm # point-biserial correlation
+  sf,
+  tigris,
+  tmap,
+  RColorBrewer
 )
 
 devtools::install_github("hafen/housingData")
@@ -63,16 +64,16 @@ ggplot2::theme_set(custom_theme())
 # Import data (from local sources)
 
 ```{r}
-# this is the main data 
+# this is the main data
 mbf <- vroom(here("raw_data", "irs_mbf.csv"))
 
-# org activities from the websites and elsewhere 
+# org activities from the websites and elsewhere
 org_activities <- vroom(here("raw_data", "irs_org_activities.csv"))
 
-irs_activities <- vroom(here("raw_data","irs_nonweb_activities.csv"))
+irs_activities <- vroom(here("raw_data", "irs_nonweb_activities.csv"))
 
 irs_activities <- irs_activities %>%
-  replace_na(list(volunteer_text = 0, member_text = 0)) # without this, the following mutate won't work 
+  replace_na(list(volunteer_text = 0, member_text = 0)) # without this, the following mutate won't work
 
 # FIPS (county-level)
 fips <- read_csv(here("raw_data", "fips_with_population.csv"), col_types = (ZCTA <- "c"))
@@ -83,12 +84,12 @@ fips_census_agg <- read_csv(here("raw_data", "census_fips_aggregate.csv"))
 # social capital data (county-level)
 social_capital <- read_csv(here("raw_data", "social_capital.csv"))
 
-# PO BOX status 
+# PO BOX status
 po_status <- read_csv(here("raw_data", "irs_po_status.csv"))
 ```
 
 ```{r}
-# other demographic data 
+# other demographic data
 census_detail <- read_csv(here("raw_data", "census_zcta_detail_data.csv"), col_types = (GEOID <- "c"))
 
 zcta_fips <- read_csv(here("raw_data", "zcta_cnts.csv"))
@@ -97,7 +98,7 @@ census_subject <- read_csv(here("raw_data", "census_zcta_subject_data.csv"), col
 
 county_class <- read_csv(here("raw_data", "County_Classifications.csv"))
 
-#county_mutual <- read_csv(here("raw_data", "reproduction_data_mutual_aid_hubs_county.csv"))
+# county_mutual <- read_csv(here("raw_data", "reproduction_data_mutual_aid_hubs_county.csv"))
 
 names(county_class)[1] <- "FIPS"
 ```
@@ -105,29 +106,27 @@ names(county_class)[1] <- "FIPS"
 # Create a sampling frame
 
 ```{r}
-org_activities_combined <- irs_activities %>% 
-   left_join(org_activities) %>% 
-   mutate(
-     volunteer = ifelse(volunteer_text == 1, 1, volunteer), 
-     membership = ifelse(member_text == 1, 1, membership)
-     )
+org_activities_combined <- irs_activities %>%
+  left_join(org_activities) %>%
+  mutate(
+    volunteer = ifelse(volunteer_text == 1, 1, volunteer),
+    membership = ifelse(member_text == 1, 1, membership)
+  )
 ```
 
 ```{r}
-org_activities_mbf <- org_activities_combined %>% 
+org_activities_mbf <- org_activities_combined %>%
   left_join(mbf %>% dplyr::select(ein, state, city, zip, irs_group)) %>%
-  mutate(grouping_value = if_else(irs_group != '0000', irs_group, ein)) %>%
-  left_join(po_status) 
+  mutate(grouping_value = if_else(irs_group != "0000", irs_group, ein)) %>%
+  left_join(po_status)
 
-nrow(org_activities_mbf) # 1,774,798, approximately 1.8M orgs this is the sampling frame 
+nrow(org_activities_mbf) # 1,774,798, approximately 1.8M orgs this is the sampling frame
 ```
 
 ```{r}
 org_activities_mbf <- org_activities_mbf %>%
-  
   # We call website but actually this variable indicates an org whose activity could be extracted either via its website or IRS report (for volunteer and membership variables)
   mutate(website = ifelse(!is.na(take_action) | !is.na(volunteer) | !is.na(membership) | !is.na(events) | !is.na(resources) | !is.na(advocacy) | !is.na(services) | !is.na(chapters) | !is.na(board) | !is.na(press) | !is.na(donations), 1, 0)) %>%
-  
   dplyr::select(ein, state, city, zip, take_action, volunteer, membership, events, website, grouping_value, is_po)
 ```
 
@@ -135,8 +134,8 @@ org_activities_mbf <- org_activities_mbf %>%
 ```{r}
 org_activities_mbf$website %>% sum() # 894,888
 
-org_activities_mbf <- org_activities_mbf %>% 
-  filter(website == 1) %>% # this includes both websites and IRS 
+org_activities_mbf <- org_activities_mbf %>%
+  filter(website == 1) %>% # this includes both websites and IRS
   filter(is_po != 1) # PO BOX
 
 nrow(org_activities_mbf) # 682,985
@@ -150,12 +149,14 @@ org_activities_mbf$ZCTA <- substr(org_activities_mbf$zip, 1, 5)
 
 ```{r}
 nonweb_eins <- irs_activities %>%
-    rename(volunteer = volunteer_text, 
-           membership = member_text) %>%
-    select(ein, volunteer, membership) %>%
-    #replace_na(list(volunteer = 0, membership = 0)) %>%
-    filter(volunteer == 1 | membership == 1) %>% 
-    pull(ein)
+  rename(
+    volunteer = volunteer_text,
+    membership = member_text
+  ) %>%
+  select(ein, volunteer, membership) %>%
+  # replace_na(list(volunteer = 0, membership = 0)) %>%
+  filter(volunteer == 1 | membership == 1) %>%
+  pull(ein)
 
 org_activities_mbf$nonweb <- org_activities_mbf$ein %in% nonweb_eins
 
@@ -163,11 +164,13 @@ org_activities_mbf %>%
   mutate(web = ifelse(nonweb == FALSE | nonweb == TRUE & take_action == 1 | nonweb == TRUE & events == 1, TRUE, FALSE)) %>%
   mutate(status = as.numeric(nonweb) + as.numeric(web)) %>%
   mutate(status = ifelse(status == 2, "Both",
-                         ifelse(status == 1 & web == TRUE, "Web",
-                                ifelse(status == 1 & nonweb == TRUE, "IRS", NA)))) %>%
+    ifelse(status == 1 & web == TRUE, "Web",
+      ifelse(status == 1 & nonweb == TRUE, "IRS", NA)
+    )
+  )) %>%
   group_by(status) %>%
   summarize(n = n()) %>%
-  mutate(freq = n/sum(n))
+  mutate(freq = n / sum(n))
 ```
 
 # Construct validity test at the org level
@@ -178,15 +181,15 @@ org_activities_mbf %>%
 
 ```{r}
 org_activities_mbf <- org_activities_mbf %>%
-  mutate(opp_binary = ifelse(volunteer == 1 | membership == 1 | take_action == 1 | events == 1, 1, 0)) %>% 
+  mutate(opp_binary = ifelse(volunteer == 1 | membership == 1 | take_action == 1 | events == 1, 1, 0)) %>%
   mutate(
     opp_mean = idx_mean(volunteer, membership, take_action, events), # mean
     opp_invcov = idx_invcov(volunteer, membership, take_action, events) # inverse covariance matrix
-  ) 
+  )
 
-prin_out <- princomp(~volunteer + membership + take_action + events, data = org_activities_mbf)
+prin_out <- princomp(~ volunteer + membership + take_action + events, data = org_activities_mbf)
 
-org_activities_mbf$opp_princomp <- prin_out$scores[,1] # the first factor 
+org_activities_mbf$opp_princomp <- prin_out$scores[, 1] # the first factor
 
 write_csv(org_activities_mbf, here("processed_data", "org_measures.csv"))
 ```
@@ -194,57 +197,69 @@ write_csv(org_activities_mbf, here("processed_data", "org_measures.csv"))
 ```{r}
 unit_cor_df <- org_activities_mbf %>%
   dplyr::select(take_action, volunteer, membership, events, opp_binary, opp_mean, opp_invcov, opp_princomp) %>%
-  rename("Taking action" = take_action,
-         "Volunteering" = volunteer, 
-         "Membership" = membership, 
-         "Holding events" = events, 
-         "Binary index" = opp_binary, 
-         "Mean index" = opp_mean, 
-         "Inverse covariance matrix index" = opp_invcov, 
-         "Principal component first factor index" = opp_princomp) %>%
+  rename(
+    "Taking action" = take_action,
+    "Volunteering" = volunteer,
+    "Membership" = membership,
+    "Holding events" = events,
+    "Binary index" = opp_binary,
+    "Mean index" = opp_mean,
+    "Inverse covariance matrix index" = opp_invcov,
+    "Principal component first factor index" = opp_princomp
+  ) %>%
   correlate() %>%
-  focus(c("Binary index",
-         "Mean index", 
-         "Inverse covariance matrix index", 
-         "Principal component first factor index"))
+  focus(c(
+    "Binary index",
+    "Mean index",
+    "Inverse covariance matrix index",
+    "Principal component first factor index"
+  ))
 
 unit_cor_df
 ```
 
 ```{r}
-sd(unit_cor_df[,2] %>% unlist) # sd binary index   
-sd(unit_cor_df[,3] %>% unlist) # sd mean index 
-sd(unit_cor_df[,4] %>% unlist) # sd inverse covariance matrix index 
-sd(unit_cor_df[,5] %>% unlist) # sd principal component first factor index
+sd(unit_cor_df[, 2] %>% unlist()) # sd binary index
+sd(unit_cor_df[, 3] %>% unlist()) # sd mean index
+sd(unit_cor_df[, 4] %>% unlist()) # sd inverse covariance matrix index
+sd(unit_cor_df[, 5] %>% unlist()) # sd principal component first factor index
 ```
 
 ```{r}
 con_plot <- unit_cor_df %>%
   pivot_longer(matches("index")) %>%
-  ggplot(aes(x = term, y = name, 
-             fill = value,
-             label = round(value, 2))) +
+  ggplot(aes(
+    x = term, y = name,
+    fill = value,
+    label = round(value, 2)
+  )) +
   geom_tile() +
-  labs(x = "",
-       y = "",
-       fill = "Correlation coefficients",
-       label = "Correlation coefficients") +
-  scale_fill_gradient2(low = "white", 
-                       high = "green", 
-                       midpoint = 0.4, 
-                       limit = c(0,1), 
-                       space = "Lab") +
-  #guides(fill = guide_legend(nrow = 2, byrow = TRUE)) +
-  geom_label(col = "black",
-             show.legend = FALSE) +
-  #coord_flip() +
-  #ylim(c(0,1)) +
+  labs(
+    x = "",
+    y = "",
+    fill = "Correlation coefficients",
+    label = "Correlation coefficients"
+  ) +
+  scale_fill_gradient2(
+    low = "white",
+    high = "green",
+    midpoint = 0.4,
+    limit = c(0, 1),
+    space = "Lab"
+  ) +
+  # guides(fill = guide_legend(nrow = 2, byrow = TRUE)) +
+  geom_label(
+    col = "black",
+    show.legend = FALSE
+  ) +
+  # coord_flip() +
+  # ylim(c(0,1)) +
   theme(legend.position = "right") +
-  scale_x_discrete(guide = guide_axis(n.dodge = 2)) 
+  scale_x_discrete(guide = guide_axis(n.dodge = 2))
 ```
 
 ```{r}
-con_plot 
+con_plot
 
 ggsave(here("outputs", "con_plot.png"))
 ```
@@ -297,14 +312,14 @@ county_class <- county_class %>%
 ```
 
 ```{r}
-# prep for joining 
-social_capital$fips_n <- 
+# prep for joining
+social_capital$fips_n <-
   formatC(social_capital$fips_n, width = 5, format = "d", flag = "0")
 
 names(social_capital)[1] <- "FIPS"
 
 #
-#cnts_counts <- select(org_activities_mbf, ZCTA, opp_mean) %>%
+# cnts_counts <- select(org_activities_mbf, ZCTA, opp_mean) %>%
 #  left_join(zcta_fips %>% select(ZCTA, FIPS)) %>%
 #  select(-ZCTA) %>%
 #  filter(!is.na(FIPS)) %>%
@@ -317,61 +332,66 @@ names(social_capital)[1] <- "FIPS"
 # 2. It combines organizations have have the same IRS group value in the same geography
 # 3. It uses the FIPS derived from the latitude and longitude
 
-cnts_counts <- org_activities_mbf %>% 
+cnts_counts <- org_activities_mbf %>%
   left_join(zcta_fips %>% select(ZCTA, FIPS)) %>%
-  select(-ZCTA) %>%  
-  #rename(FIPS = fips) %>%
-  group_by(FIPS, grouping_value) %>% 
+  select(-ZCTA) %>%
+  # rename(FIPS = fips) %>%
+  group_by(FIPS, grouping_value) %>%
   summarise(m = max(opp_mean, na.rm = T)) %>%
-  group_by(FIPS) %>% 
-  summarise(n = n(), 
-            mean_sum = sum(m))
+  group_by(FIPS) %>%
+  summarise(
+    n = n(),
+    mean_sum = sum(m)
+  )
 ```
 
 ```{r}
-# join the tables 
+# join the tables
 dd <- cnts_counts %>%
   left_join(fips) %>%
   left_join(fips_census_agg) %>%
   left_join(social_capital) %>%
-  left_join(county_class) 
+  left_join(county_class)
 ```
 
 ```{r}
-# create the normalized index 
+# create the normalized index
 dd <- dd %>%
   filter(!is.na(population_total)) %>%
   mutate(opc = 1000 * mean_sum / population_total) %>%
-  mutate(opc_tile = ntile(opc, 5),
-         opc_rank = percent_rank(opc),
-         opc_cume_dist = cume_dist(opc)) %>%
+  mutate(
+    opc_tile = ntile(opc, 5),
+    opc_rank = percent_rank(opc),
+    opc_cume_dist = cume_dist(opc)
+  ) %>%
   mutate(all_org = 1000 * n / population_total)
 ```
 
 ```{r}
 dd_sd <- dd %>%
   group_by(State) %>%
-  summarize(mean = mean(opc_tile),
-            median = median(opc_tile), 
-            sd = sd(opc_tile)) %>%
+  summarize(
+    mean = mean(opc_tile),
+    median = median(opc_tile),
+    sd = sd(opc_tile)
+  ) %>%
   arrange(desc(mean))
 
 dd_sd %>%
-  DT::datatable() 
+  DT::datatable()
 ```
 
 ```{r}
 map_trade_off <- left_join(
-  
-  dd %>% 
+  dd %>%
     group_by(State) %>%
     mutate(higher_cnts = opc_tile > 4) %>%
     summarize(pct_higher_cnts = mean(higher_cnts)),
-
-  dd %>% 
+  dd %>%
     group_by(State) %>%
     mutate(lower_cnts = opc_tile < 2) %>%
-    summarize(pct_lower_cnts = mean(lower_cnts))) 
+    summarize(pct_lower_cnts = mean(lower_cnts))
+)
 ```
 
 ```{r}
@@ -380,8 +400,10 @@ map_trade_off %>%
   ggplot(aes(x = pct_lower_cnts, y = pct_higher_cnts, label = State)) +
   geom_text_repel() +
   coord_flip() +
-  labs(x = "% of 1 graded counties", 
-       y = "% of 5 graded counties") +
+  labs(
+    x = "% of 1 graded counties",
+    y = "% of 5 graded counties"
+  ) +
   scale_x_continuous(label = scales::percent) +
   scale_y_continuous(label = scales::percent) +
   geom_vline(xintercept = 0.5, linetype = 2) +
@@ -395,11 +417,13 @@ ggsave(here("outputs", "map_trade_off.png"), height = 6, width = 6)
 ```{r}
 disc_plot <- dd %>%
   select(opc_tile, all_org, bonding, linking, bridging, socialcap) %>%
-  rename("Organizational density" = all_org,
-         "Bonding" = bonding, 
-         "Linking" = linking, 
-         "Bridging" = bridging, 
-         "Social Capital" = socialcap) %>%
+  rename(
+    "Organizational density" = all_org,
+    "Bonding" = bonding,
+    "Linking" = linking,
+    "Bridging" = bridging,
+    "Social Capital" = socialcap
+  ) %>%
   correlate() %>%
   shave() %>%
   select(c(1:2)) %>%
@@ -407,28 +431,36 @@ disc_plot <- dd %>%
   ggplot(aes(x = fct_reorder(term, opc_tile), y = opc_tile, label = round(opc_tile, 2))) +
   geom_col() +
   coord_flip() +
-  labs(x = "",
-       y = "Correlation coefficient \n with civic opportunity index") +
-  geom_label(col = "black",
-             show.legend = FALSE) +
-  ylim(c(0,1))
+  labs(
+    x = "",
+    y = "Correlation coefficient \n with civic opportunity index"
+  ) +
+  geom_label(
+    col = "black",
+    show.legend = FALSE
+  ) +
+  ylim(c(0, 1))
 ```
 
 ```{r}
 disc_table <- dd %>%
   select(opc_tile, all_org, bonding, linking, bridging, socialcap) %>%
-  rename("Organizational density" = all_org,
-         "Bonding" = bonding, 
-         "Linking" = linking, 
-         "Bridging" = bridging, 
-         "Social Capital" = socialcap) %>%
+  rename(
+    "Organizational density" = all_org,
+    "Bonding" = bonding,
+    "Linking" = linking,
+    "Bridging" = bridging,
+    "Social Capital" = socialcap
+  ) %>%
   correlate() %>%
   shave() %>%
   select(c(1:2)) %>%
   slice(-1) %>%
   arrange(desc(opc_tile)) %>%
-  rename("Measures" = term, 
-         "Corrleation coefficient" = opc_tile) %>%
+  rename(
+    "Measures" = term,
+    "Corrleation coefficient" = opc_tile
+  ) %>%
   gt()
 
 gtsave(disc_table, here("outputs", "disc_table.docx"))
@@ -438,19 +470,19 @@ gtsave(disc_table, here("outputs", "disc_table.docx"))
 
 ```{r}
 corr_mod <- dd %>%
-  #group_by(State) %>%
+  # group_by(State) %>%
   do(tidy(standardize(lm_robust(formula = opc_tile ~ race_per_white_nonhispanic + per_poverty + college_educ, data = .)))) # Here standardize refers to refitting the model with standardized data (https://cran.r-project.org/web/packages/effectsize/vignettes/effectsize.html) z-scoring
 
 corr_mod_rank <- dd %>%
-  #group_by(State) %>%
+  # group_by(State) %>%
   do(tidy(standardize(lm_robust(formula = opc_rank ~ race_per_white_nonhispanic + per_poverty + college_educ, data = .)))) # Here standardize refers to refitting the model with standardized data (https://cran.r-project.org/web/packages/effectsize/vignettes/effectsize.html) z-scoring
 
 corr_mod_cume_dist <- dd %>%
-  #group_by(State) %>%
+  # group_by(State) %>%
   do(tidy(standardize(lm_robust(formula = opc_cume_dist ~ race_per_white_nonhispanic + per_poverty + college_educ, data = .)))) # Here standardize refers to refitting the model with standardized data (https://cran.r-project.org/web/packages/effectsize/vignettes/effectsize.html) z-scoring
 
 corr_mod_rc <- dd %>%
-  #group_by(State) %>%
+  # group_by(State) %>%
   do(tidy(standardize(lm_robust(formula = all_org ~ race_per_white_nonhispanic + per_poverty + college_educ, data = .))))
 ```
 
@@ -468,10 +500,11 @@ pred_plot <- corr_mod_bind %>%
   )) %>%
   filter(!str_detect(term, "(Intercept)")) %>%
   ggplot(aes(x = term)) +
-  geom_text_repel(aes(y = estimate, label = round(estimate, 2), fill = DV, size = 1.5), 
-             position = position_dodge(width = 0.9),
-             col = "black",
-             show.legend = FALSE) +
+  geom_text_repel(aes(y = estimate, label = round(estimate, 2), fill = DV, size = 1.5),
+    position = position_dodge(width = 0.9),
+    col = "black",
+    show.legend = FALSE
+  ) +
   geom_col(aes(y = estimate, fill = DV), position = "dodge", alpha = 0.4) +
   geom_errorbar(aes(ymax = estimate + std.error, ymin = estimate - std.error, fill = DV), position = "dodge", alpha = 0.4) +
   geom_hline(yintercept = 0, linetype = "dashed", col = "red") +
@@ -481,14 +514,14 @@ pred_plot <- corr_mod_bind %>%
     fill = "Predictors"
   ) +
   scale_fill_viridis_d(begin = 0.1, end = 0.9) +
-  #facet_wrap(~term, ncol = 2) +
+  # facet_wrap(~term, ncol = 2) +
   guides(fill = guide_legend(nrow = 2, byrow = TRUE)) +
   coord_flip() +
-  theme(legend.position = "bottom") 
+  theme(legend.position = "bottom")
 
 pred_plot
 
-ggsave(here("outputs", "pred_plot.png"))
+ggsave(here("outputs", "pred_plot.png"), height = 6, width = 6)
 ```
 
 # Create a map
@@ -498,22 +531,24 @@ ggsave(here("outputs", "pred_plot.png"))
 ```{r}
 # Base map
 sj <- tigris::counties(cb = TRUE) %>%
-    mutate(id = row_number())
+  mutate(id = row_number())
 
 sj <- sj %>%
-    filter(!(STATEFP %in% c("02","15", "60", "66", "69", "72", "78"))) # Sorry Alaska, Hawaii, and US Territories 
+  filter(!(STATEFP %in% c("02", "15", "60", "66", "69", "72", "78"))) # Sorry Alaska, Hawaii, and US Territories
+
+write_rds(sj, here("processed_data", "sj.rds"))
 ```
 
 ```{r}
-geo_county <- geoCounty %>%
-  rename(FIPS = fips)
+sj <- read_rds(here("processed_data", "sj.rds"))
+```
 
+```{r}
 tmp <- dd %>%
   select(FIPS, opc_tile) %>%
   left_join(org_activities_combined %>%
-              rename(FIPS = fips) %>%
-              select(FIPS, lat, lng) 
-            ) %>%
+    rename(FIPS = fips) %>%
+    select(FIPS, lat, lng)) %>%
   filter(!is.na(lng)) %>%
   st_as_sf(coords = c("lng", "lat"), crs = st_crs(sj), agr = "constant")
 ```
@@ -527,30 +562,39 @@ write_rds(combined_map, here("processed_data", "combined_map.rds"))
 ```{r}
 combined_map <- read_rds(here("processed_data", "combined_map.rds"))
 
-combined_unique <- combined_map[!duplicated(combined_map$id),] #3,108 counties
+combined_unique <- combined_map[!duplicated(combined_map$id), ] # 3,108 counties
 
 write_rds(combined_unique, here("processed_data", "combined_unique.rds"))
+```
 
+```{r}
 combined_unique <- read_rds(here("processed_data", "combined_unique.rds"))
 ```
 
 ```{r}
-county_map <- tm_shape(sj) +
+# Define the color palette
+my_palette <- RColorBrewer::brewer.pal(5, "Greens")
+
+# Create the map
+us_county_map <- tm_shape(sj) +
   tm_borders() +
   tm_shape(combined_unique) +
-  tm_polygons(col = "opc_tile",
-          midpoint = 3,
-          #style = "order", # close to quantile style
-          colorNA = "grey50",
-          pal = "viridis",
-          title = "Civic opportunity index") +
-    tm_layout(
-        legend.position = c("left", "bottom")
-        )
+  tm_polygons(
+    col = "opc_tile",
+    palette = my_palette,
+    midpoint = 3,
+    colorNA = "grey50",
+    title = "Civic opportunity index"
+  ) +
+  tm_layout(
+    legend.position = c("left", "bottom")
+  )
 
-# Static mode 
-tmap_mode("plot")
+# View the map
+us_county_map
+```
 
-# Save static map 
-tmap_save(county_map, file = here("outputs", "us_county_map.png"))
+```{r}
+# Save the static map
+tmap_save(us_county_map, file = here("outputs", "us_county_map.png"))
 ```
