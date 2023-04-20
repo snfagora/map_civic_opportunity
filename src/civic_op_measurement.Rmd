@@ -508,9 +508,9 @@ pred_plot <- corr_mod_bind %>%
   geom_errorbar(aes(ymax = estimate + std.error, ymin = estimate - std.error, fill = DV), position = "dodge", alpha = 0.4) +
   geom_hline(yintercept = 0, linetype = "dashed", col = "red") +
   labs(
-    x = "",
+    x = "Predictors",
     y = "Estimated regression coefficient",
-    fill = "Predictors"
+    fill = "Response variables"
   ) +
   scale_fill_viridis_d(begin = 0.1, end = 0.9) +
   # facet_wrap(~term, ncol = 2) +
@@ -539,10 +539,13 @@ write_rds(sj, here("processed_data", "sj.rds"))
 
 sj_state <- tigris::states(cb = TRUE) %>%
   filter(!(STATEFP %in% c("02", "15", "60", "66", "69", "72", "78"))) # Sorry Alaska, Hawaii, and US Territories
+
+write_rds(sj_state, here("processed_data", "sj_state.rds"))
 ```
 
 ```{r}
 sj <- read_rds(here("processed_data", "sj.rds"))
+sj_state <- read_rds(here("processed_data", "sj_state.rds"))
 ```
 
 ```{r}
@@ -579,27 +582,24 @@ my_palette <- RColorBrewer::brewer.pal(5, "Greens")
 
 # Create the map
 us_county_map <- tm_shape(sj_state) +
-  tm_borders() +
-  tm_fill(col = "white") +
-  tm_shape(sj) +
-  tm_borders() +
+  tm_borders(lwd = 2, col = "black") +
   tm_shape(combined_unique) +
   tm_polygons(
     col = "opc_tile",
     palette = my_palette,
     midpoint = 3,
     colorNA = "grey50",
-    title = "Civic opportunity index"
+    title = "Civic opportunity index",
+    border.alpha = 0.5, 
+    border.col = "grey80"
   ) +
   tm_layout(
     legend.position = c("left", "bottom")
   )
 
 # View the map
-us_county_map
-```
+# us_county_map
 
-```{r}
 # Save the static map
 tmap_save(us_county_map, file = here("outputs", "us_county_map.png"))
 ```
