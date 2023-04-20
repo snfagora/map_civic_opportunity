@@ -26,12 +26,18 @@ pacman::p_load(
   vroom,
   naniar,
   modelsummary,
-  gt
+  gt,
+  DT,
   #ltm # point-biserial correlation
+  sf, 
+  tigris, 
+  tmap
 )
 
+devtools::install_github("hafen/housingData")
 devtools::install_github("graemeblair/stdidx")
 library(stdidx)
+library(housingData)
 
 options(es.use_symbols = TRUE) # get nice symbols
 
@@ -99,7 +105,7 @@ names(county_class)[1] <- "FIPS"
 # Create a sampling frame
 
 ```{r}
- org_activities_combined <- irs_activities %>% 
+org_activities_combined <- irs_activities %>% 
    left_join(org_activities) %>% 
    mutate(
      volunteer = ifelse(volunteer_text == 1, 1, volunteer), 
@@ -336,10 +342,22 @@ dd <- cnts_counts %>%
 dd <- dd %>%
   filter(!is.na(population_total)) %>%
   mutate(opc = 1000 * mean_sum / population_total) %>%
-  mutate(opc_tile = ntile(opc, 3),
+  mutate(opc_tile = ntile(opc, 5),
          opc_rank = percent_rank(opc),
          opc_cume_dist = cume_dist(opc)) %>%
   mutate(all_org = 1000 * n / population_total)
+```
+
+```{r}
+dd_sd <- dd %>%
+  group_by(State) %>%
+  summarize(mean = mean(opc_tile),
+            median = median(opc_tile), 
+            sd = sd(opc_tile)) %>%
+  arrange(desc(mean))
+
+dd_sd %>%
+  DT::datatable() 
 ```
 
 ```{r}
@@ -367,7 +385,7 @@ map_trade_off %>%
   scale_x_continuous(label = scales::percent) +
   scale_y_continuous(label = scales::percent) +
   geom_vline(xintercept = 0.5, linetype = 2) +
-  geom_hline(yintercept = 0.5, linetype = 2) 
+  geom_hline(yintercept = 0.5, linetype = 2)
 
 ggsave(here("outputs", "map_trade_off.png"), height = 6, width = 6)
 ```
@@ -437,6 +455,11 @@ corr_mod_rc <- dd %>%
 ```
 
 ```{r}
+corr_mod_bind <- bind_rows(
+  mutate(corr_mod, DV = "Civic opportunity index"),
+  mutate(corr_mod_rc, DV = "Organizational density")
+)
+
 pred_plot <- corr_mod_bind %>%
   mutate(term = recode(term,
     "race_per_white_nonhispanic" = "Non-hispanic white",
@@ -468,11 +491,66 @@ pred_plot
 ggsave(here("outputs", "pred_plot.png"))
 ```
 
-# Put them all
+# Create a map
+
+## Join and shape 
 
 ```{r}
-con_plot / disc_plot / pred_plot +  plot_annotation(tag_level = "A")
+# Base map
+sj <- tigris::counties(cb = TRUE) %>%
+    mutate(id = row_number())
 
-ggsave(here("outputs", "measurement_validation.png"), height = 10, 
-       width = 10)
+sj <- sj %>%
+    filter(!(STATEFP %in% c("02","15", "60", "66", "69", "72", "78"))) # Sorry Alaska, Hawaii, and US Territories 
+```
+
+```{r}
+geo_county <- geoCounty %>%
+  rename(FIPS = fips)
+
+tmp <- dd %>%
+  select(FIPS, opc_tile) %>%
+  left_join(org_activities_combined %>%
+              rename(FIPS = fips) %>%
+              select(FIPS, lat, lng) 
+            ) %>%
+  filter(!is.na(lng)) %>%
+  st_as_sf(coords = c("lng", "lat"), crs = st_crs(sj), agr = "constant")
+```
+
+```{r}
+combined_map <- sj %>% st_join(tmp)
+
+write_rds(combined_map, here("processed_data", "combined_map.rds"))
+```
+
+```{r}
+combined_map <- read_rds(here("processed_data", "combined_map.rds"))
+
+combined_unique <- combined_map[!duplicated(combined_map$id),] #3,108 counties
+
+write_rds(combined_unique, here("processed_data", "combined_unique.rds"))
+
+combined_unique <- read_rds(here("processed_data", "combined_unique.rds"))
+```
+
+```{r}
+county_map <- tm_shape(sj) +
+  tm_borders() +
+  tm_shape(combined_unique) +
+  tm_polygons(col = "opc_tile",
+          midpoint = 3,
+          #style = "order", # close to quantile style
+          colorNA = "grey50",
+          pal = "viridis",
+          title = "Civic opportunity index") +
+    tm_layout(
+        legend.position = c("left", "bottom")
+        )
+
+# Static mode 
+tmap_mode("plot")
+
+# Save static map 
+tmap_save(county_map, file = here("outputs", "us_county_map.png"))
 ```
