@@ -85,9 +85,7 @@ social_capital <- read_csv(here("raw_data", "social_capital.csv"))
 
 # PO BOX status
 po_status <- read_csv(here("raw_data", "irs_po_status.csv"))
-```
 
-```{r}
 # other demographic data
 census_detail <- read_csv(here("raw_data", "census_zcta_detail_data.csv"), col_types = (GEOID <- "c"))
 
