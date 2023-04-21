@@ -133,11 +133,13 @@ org_activities_mbf <- org_activities_mbf %>%
 ```{r}
 org_activities_mbf$website %>% sum() # 894,888
 
+org_activities_mbf$website %>% sum() / nrow(org_activities_mbf)
+  
 org_activities_mbf <- org_activities_mbf %>%
-  filter(website == 1) %>% # this includes both websites and IRS
+  #filter(website == 1) %>% # this includes both websites and IRS
   filter(is_po != 1) # PO BOX
 
-nrow(org_activities_mbf) # 682,985
+nrow(org_activities_mbf) # 1,363,701
 
 org_activities_mbf <- org_activities_mbf %>%
   replace_na(list(take_action = 0, volunteer = 0, membership = 0, events = 0))
