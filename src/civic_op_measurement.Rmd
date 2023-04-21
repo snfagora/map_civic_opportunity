@@ -144,6 +144,10 @@ org_activities_mbf <- org_activities_mbf %>%
 
 # the first 5 digits
 org_activities_mbf$ZCTA <- substr(org_activities_mbf$zip, 1, 5)
+
+(org_activities_mbf %>%
+  filter(take_action != 0 | volunteer != 0 | membership != 0 | events != 0) %>%
+  nrow()) / nrow(org_activities_combined)
 ```
 
 ```{r}
@@ -191,6 +195,11 @@ prin_out <- princomp(~ volunteer + membership + take_action + events, data = org
 org_activities_mbf$opp_princomp <- prin_out$scores[, 1] # the first factor
 
 write_csv(org_activities_mbf, here("processed_data", "org_measures.csv"))
+
+civic_orgs <- org_activities_mbf %>%
+  filter(opp_mean > 0) 
+
+write_csv(civic_orgs, here("processed_data", "civic_orgs.csv"))
 ```
 
 ```{r}
@@ -391,6 +400,9 @@ map_trade_off <- left_join(
     mutate(lower_cnts = opc_tile < 2) %>%
     summarize(pct_lower_cnts = mean(lower_cnts))
 )
+
+map_trade_off %>%
+  DT::datatable()
 ```
 
 ```{r}
