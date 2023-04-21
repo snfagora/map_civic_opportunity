@@ -1,4 +1,4 @@
----
+$)C---
 title: "Civic opportunity measurement"
 author: "Jae Yeon Kim"
 date: "`r Sys.Date()`"
@@ -74,6 +74,9 @@ irs_activities <- vroom(here("raw_data", "irs_nonweb_activities.csv"))
 irs_activities <- irs_activities %>%
   replace_na(list(volunteer_text = 0, member_text = 0)) # without this, the following mutate won't work
 
+# orgs geolocated to FIPS
+irs_to_fips <- vroom(here("raw_data","irs_to_fips.csv"))
+
 # FIPS (county-level)
 fips <- read_csv(here("raw_data", "fips_with_population.csv"), col_types = (ZCTA <- "c"))
 
@@ -115,7 +118,8 @@ org_activities_combined <- irs_activities %>%
 org_activities_mbf <- org_activities_combined %>%
   left_join(mbf %>% dplyr::select(ein, state, city, zip, irs_group)) %>%
   mutate(grouping_value = if_else(irs_group != "0000", irs_group, ein)) %>%
-  left_join(po_status)
+  left_join(po_status) %>%
+  left_join(irs_to_fips)
 
 nrow(org_activities_mbf) # 1,774,798, approximately 1.8M orgs this is the sampling frame
 ```
@@ -124,7 +128,7 @@ nrow(org_activities_mbf) # 1,774,798, approximately 1.8M orgs this is the sampli
 org_activities_mbf <- org_activities_mbf %>%
   # We call website but actually this variable indicates an org whose activity could be extracted either via its website or IRS report (for volunteer and membership variables)
   mutate(website = ifelse(!is.na(take_action) | !is.na(volunteer) | !is.na(membership) | !is.na(events) | !is.na(resources) | !is.na(advocacy) | !is.na(services) | !is.na(chapters) | !is.na(board) | !is.na(press) | !is.na(donations), 1, 0)) %>%
-  dplyr::select(ein, state, city, zip, take_action, volunteer, membership, events, website, grouping_value, is_po)
+  dplyr::select(ein, state, city, zip, take_action, volunteer, membership, events, website, grouping_value, is_po, fips)
 ```
 
 
@@ -341,9 +345,9 @@ names(social_capital)[1] <- "FIPS"
 # 3. It uses the FIPS derived from the latitude and longitude
 
 cnts_counts <- org_activities_mbf %>%
-  left_join(zcta_fips %>% select(ZCTA, FIPS)) %>%
-  select(-ZCTA) %>%
-  # rename(FIPS = fips) %>%
+  #left_join(zcta_fips %>% select(ZCTA, FIPS)) %>%
+  #select(-ZCTA) %>%
+  rename(FIPS = fips) %>%
   group_by(FIPS, grouping_value) %>%
   summarise(m = max(opp_mean, na.rm = T)) %>%
   group_by(FIPS) %>%
