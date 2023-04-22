@@ -131,7 +131,6 @@ org_activities_mbf <- org_activities_mbf %>%
   dplyr::select(ein, state, city, zip, take_action, volunteer, membership, events, extractable, grouping_value, is_po, fips)
 ```
 
-
 ```{r}
 org_activities_mbf$extractable %>% sum() # 894,888
 
