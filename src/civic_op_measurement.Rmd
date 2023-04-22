@@ -1,4 +1,4 @@
-$)C---
+---
 title: "Civic opportunity measurement"
 author: "Jae Yeon Kim"
 date: "`r Sys.Date()`"
@@ -92,7 +92,7 @@ po_status <- read_csv(here("raw_data", "irs_po_status.csv"))
 # other demographic data
 census_detail <- read_csv(here("raw_data", "census_zcta_detail_data.csv"), col_types = (GEOID <- "c"))
 
-zcta_fips <- read_csv(here("raw_data", "zcta_cnts.csv"))
+#zcta_fips <- read_csv(here("raw_data", "zcta_cnts.csv"))
 
 census_subject <- read_csv(here("raw_data", "census_zcta_subject_data.csv"), col_types = (GEOID <- "c"))
 
@@ -249,8 +249,8 @@ con_plot <- unit_cor_df %>%
   labs(
     x = "",
     y = "",
-    fill = "Correlation coefficients",
-    label = "Correlation coefficients"
+    fill = "Correlation coefficient",
+    label = "Correlation coefficient"
   ) +
   scale_fill_gradient2(
     low = "white",
@@ -259,21 +259,17 @@ con_plot <- unit_cor_df %>%
     limit = c(0, 1),
     space = "Lab"
   ) +
-  # guides(fill = guide_legend(nrow = 2, byrow = TRUE)) +
   geom_label(
     col = "black",
     show.legend = FALSE
   ) +
-  # coord_flip() +
-  # ylim(c(0,1)) +
-  theme(legend.position = "right") +
+  theme(legend.position = "none") +
   scale_x_discrete(guide = guide_axis(n.dodge = 2))
-```
 
-```{r}
 con_plot
 
-ggsave(here("outputs", "con_plot.png"))
+ggsave(here("outputs", "con_plot.png"), 
+       height = 5, width = 5)
 ```
 
 # Link org and census data at the county level
@@ -343,7 +339,9 @@ names(social_capital)[1] <- "FIPS"
 # 1. It filters out organizations that only have a PO Box. Those are true organizations but perhaps not true geolocations
 # 2. It combines organizations have have the same IRS group value in the same geography
 # 3. It uses the FIPS derived from the latitude and longitude
+```
 
+```{r}
 cnts_counts <- org_activities_mbf %>%
   #left_join(zcta_fips %>% select(ZCTA, FIPS)) %>%
   #select(-ZCTA) %>%
@@ -462,21 +460,24 @@ disc_table <- dd %>%
   select(opc_tile, all_org, bonding, linking, bridging, socialcap) %>%
   rename(
     "Organizational density" = all_org,
+    "Social Capital" = socialcap,
     "Bonding" = bonding,
-    "Linking" = linking,
     "Bridging" = bridging,
-    "Social Capital" = socialcap
+    "Linking" = linking
   ) %>%
   correlate() %>%
   shave() %>%
   select(c(1:2)) %>%
   slice(-1) %>%
-  arrange(desc(opc_tile)) %>%
   rename(
     "Measures" = term,
-    "Corrleation coefficient" = opc_tile
+    "Correlation coefficient" = opc_tile
   ) %>%
+  mutate(Measures = fct_relevel(Measures, c("Organizational density", "Social Capital", "Bonding", "Bridging", "Linking"))) %>%
+  arrange(Measures) %>%
   gt()
+
+disc_table
 
 gtsave(disc_table, here("outputs", "disc_table.docx"))
 ```

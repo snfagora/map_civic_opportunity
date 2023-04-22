@@ -1,33 +1,38 @@
-# install pkgs 
+# install pkgs
 if (!require(pacman)) install.packages("pacman")
 
-pacman::p_load(tidyverse, here, haven, vroom, 
-               fedmatch, fastLink, # fuzzy matching methods
-               purrr, future, furrr,
-               broom,
-               MKinfer,
-               modelsummary,
-               gt)
+pacman::p_load(
+  tidyverse, here, haven, vroom,
+  fedmatch, fastLink, # fuzzy matching methods
+  purrr, future, furrr,
+  broom,
+  MKinfer,
+  modelsummary,
+  gt,
+  ggalluvial
+)
 
-# load data 
+# load data
 ## sav file (Washington data)
 
 dc_file_name <- list.files(here("raw_data"))[str_detect(list.files(here("raw_data")), "WR")]
 
 washington <- haven::read_sav(here("raw_data", dc_file_name))
 
-washington$lobby <- if_else(washington$lobbydum01 == 1 | washington$lobbydum11 == 1, 1, 0) 
+washington$lobby <- if_else(washington$lobbydum01 == 1 | washington$lobbydum11 == 1, 1, 0)
 washington$lobby[is.na(washington$lobby)] <- 0
 
 washington$lobby %>% mean()
 
-washington$orgidno %>% unique() %>% length() #40,782
+washington$orgidno %>%
+  unique() %>%
+  length() # 40,782
 
 washington %>%
   distinct(orgidno, lobby) %>%
   summarize(lobby_pct = mean(lobby)) # 33%
 
-#' codebook 
+#' codebook
 #' 101-don't know (876)
 #' 201-corporation  (14409)
 #' 202-American subsidiary of a foreign corp (612)
@@ -36,37 +41,39 @@ washington %>%
 #' 205-business coalition (1189)
 #' 206-firm of professionals (1264)
 #' 220-
-#' 301-306 occupational associations  
+#' 301-306 occupational associations
 #' 303-professional associations
-#' 401-407 unions 
-#' 501-606 farms 
-#' 701-702 health 
-#' 801-806 US government 
+#' 401-407 unions
+#' 501-606 farms
+#' 701-702 health
+#' 801-806 US government
 #' 1001-1006 Foreign government and organizations
-#' 1101-1116 public interest 
+#' 1101-1116 public interest
 #' 1201-PAC
-#' 1202-Party 
-#' 1301-1302 Veterans 
-#' 1401-1417 Civil rights 
-#' 1501-1502 Age 
+#' 1202-Party
+#' 1301-1302 Veterans
+#' 1401-1417 Civil rights
+#' 1501-1502 Age
 #' 1601-1701 Gender
-#' 1801-1802 Disabled 
+#' 1801-1802 Disabled
 #' 1901-1903 Social welfare
-#' 2001-Recreational 
+#' 2001-Recreational
 #' 2101-Arts/cultural
-#' 2201-Charity/Philanthropy 
+#' 2201-Charity/Philanthropy
 #' 2301-2304 Think thank/research
 #' 2401-Others
 
-not_this <- c(101, #don't know  
-              201:202, #corp
-              203, # coops 
-              501:606, #farms
-              801:806, #US Govt 
-              1001:1006, #Foreign govt and orgs 
-              1201, #PAC 
-              1202, #Part
-              2401) #Others
+not_this <- c(
+  101, # don't know
+  201:202, # corp
+  203, # coops
+  501:606, # farms
+  801:806, # US Govt
+  1001:1006, # Foreign govt and orgs
+  1201, # PAC
+  1202, # Part
+  2401
+) # Others
 
 washington <- washington %>%
   filter(!category %in% not_this) %>%
@@ -75,40 +82,45 @@ washington <- washington %>%
 washington %>%
   group_by(category) %>%
   summarize(cat_n = n()) %>%
-  arrange(desc(cat_n)) 
+  arrange(desc(cat_n))
 
 washington <- washington %>%
-  mutate(cat_union = if_else(category %in% c(401:407), 1, 0),
-         cat_prof = if_else(category %in% c(204:303), 1, 0)) 
+  mutate(
+    cat_union = if_else(category %in% c(401:407), 1, 0),
+    cat_prof = if_else(category %in% c(204:303), 1, 0)
+  )
 
 washington %>%
-  summarize(sum_union = sum(cat_union),
-            sum_prof = sum(cat_prof))
-#204 unions, 4,800 professional organizations (broadly construed)
+  summarize(
+    sum_union = sum(cat_union),
+    sum_prof = sum(cat_prof)
+  )
+# 204 unions, 4,800 professional organizations (broadly construed)
 
-## MMA data 
+## MMA data
 
 mma <- vroom::vroom(here("raw_data", "irs_mbf.csv"))
 pred <- vroom::vroom(here("raw_data", "predictions.csv"))
-activities <- vroom::vroom(here("raw_data", "activities.csv"))
+civic_orgs <- vroom::vroom(here("processed_data", "civic_orgs.csv"))
 
-mma <- left_join(mma, 
-                 pred %>%
-                   select(ein, predicted))
+mma <- left_join(mma, pred %>%
+  select(ein, predicted))
 
-# inspect data 
+# inspect data
 
-## summary 
+## summary
 
 washington %>%
   group_by(location) %>%
-  summarize(lobby_n = sum(lobby, na.rm = T), 
-            n = n()) %>%
-  mutate(freq = lobby_n/n) %>%
+  summarize(
+    lobby_n = sum(lobby, na.rm = T),
+    n = n()
+  ) %>%
+  mutate(freq = lobby_n / n) %>%
   filter(freq != 1) %>%
   arrange(desc(lobby_n))
 
-# cleaning 
+# cleaning
 
 washington$orgname <- tolower(washington$orgname) %>% trimws()
 mma$name <- tolower(mma$name) %>% trimws()
@@ -116,26 +128,27 @@ mma$name <- tolower(mma$name) %>% trimws()
 washington$orgname <- clean_strings(washington$orgname)
 mma$name <- clean_strings(mma$name)
 
-# raw status 
-intersect(washington$orgname, mma$name) %>% unique() %>% length() # only 2,020 names are matched 
+# raw status
+intersect(washington$orgname, mma$name) %>%
+  unique() %>%
+  length() # only 2,020 names are matched
 
 # fuzzy name matching
 states <- intersect(washington$location, mma$state)
 
-## Using fedmatch 
+## Using fedmatch
 
 washington$orgidno[washington$orgidno %>% duplicated()]
 
-washington_copy <- washington 
+washington_copy <- washington
 
 washington <- washington %>%
   distinct(orgidno, orgname, lobby, location)
 
 fuzzy_match <- function(state) {
-  
-  #state <- "DC"
+  # state <- "DC"
   message(state)
-  
+
   matched <- fedmatch::merge_plus(
     data1 = washington %>%
       filter(location == state),
@@ -146,22 +159,24 @@ fuzzy_match <- function(state) {
     by.y = "name",
     unique_key_1 = "orgidno",
     unique_key_2 = "ein",
-    suffixes = c("_1", "_2"), 
-    fuzzy_settings = build_fuzzy_settings(maxDist = .5,
-                                          method = "wgt_jaccard", 
-                                          nthread = 2
-    ))
-  
+    suffixes = c("_1", "_2"),
+    fuzzy_settings = build_fuzzy_settings(
+      maxDist = .5,
+      method = "wgt_jaccard",
+      nthread = 2
+    )
+  )
+
   matched$matches <- matched$matches %>%
     distinct(name, ein, orgidno, predicted, lobby) %>%
     as_tibble() %>%
     mutate(state = state)
-  
+
   return(matched$matches)
 }
 
 plan(multiprocess, workers = 7)
-options(future.globals.maxSize= 1000000000)
+options(future.globals.maxSize = 1000000000)
 
 final_df <- map_dfr(states, fuzzy_match)
 
@@ -171,8 +186,8 @@ write_rds(final_df, here("processed_data", "matched.rds"))
 
 final_df <- read_rds(here("processed_data", "matched.rds"))
 
-5968/9673 #62%
-2020/9673 #21%
+5968 / 9673 # 62%
+2020 / 9673 # 21%
 
 # simplify by it one orgidno -> one org
 
@@ -183,22 +198,24 @@ set.seed(1234)
 #   group_by(orgidno) %>%
 #   slice_sample(n = 1)
 
-final_df$lobby %>% mean() #42%
+final_df$lobby %>% mean() # 41%
 
-# check the missingness 
+# check the missingness
 
 final_df %>%
   group_by(state) %>%
-  summarize(lobby_n = sum(lobby, na.rm = T),
-            n = n()) %>%
-  mutate(freq = lobby_n/n) %>%
+  summarize(
+    lobby_n = sum(lobby, na.rm = T),
+    n = n()
+  ) %>%
+  mutate(freq = lobby_n / n) %>%
   filter(freq != 1) %>%
   arrange(desc(lobby_n))
 
 missed <- setdiff(washington$orgidno, final_df$orgidno)
 
 washington <- washington %>%
-  mutate(missed = if_else(orgidno %in% missed, 1, 0)) 
+  mutate(missed = if_else(orgidno %in% missed, 1, 0))
 
 1 - (washington$missed %>% mean())
 
@@ -214,8 +231,10 @@ t.test.out %>%
   geom_point() +
   coord_flip() +
   geom_hline(yintercept = 0.01, linetype = "dashed", color = "red") +
-  labs(x = "",
-       subtitle = "The dotted vertical line indicates p.value = 0.01")
+  labs(
+    x = "",
+    subtitle = "The dotted vertical line indicates p.value = 0.01"
+  )
 
 ggsave(here("outputs", "t_test.png"), height = 8, width = 10)
 
@@ -225,14 +244,16 @@ combined_df <- left_join(final_df %>% distinct(ein, state, lobby, name), mma)
 
 vroom_write(combined_df, here("processed_data", "joined_df.tsv.gz"))
 
-# intersect 
+# intersect
 dc_table <- combined_df %>%
   filter(!is.na(predicted)) %>%
-  #mutate(lobby = tidyr::replace_na(lobby, 0)) %>%
+  # mutate(lobby = tidyr::replace_na(lobby, 0)) %>%
   group_by(predicted) %>%
-  summarize(n = n(),
-            lobby_n = sum(lobby, na.rm = T)) %>%
-  mutatea(lobby_pct = lobby_n/n) %>%
+  summarize(
+    n = n(),
+    lobby_n = sum(lobby, na.rm = T)
+  ) %>%
+  mutate(lobby_pct = lobby_n / n) %>%
   select(predicted, lobby_n, lobby_pct)
 
 dc_table
@@ -245,9 +266,11 @@ gt_dc_table <- dc_table %>%
     columns = c("lobby_pct"),
     decimals = 1
   ) %>%
-  cols_label(predicted = "Predicted", 
-             lobby_n = "Lobby Org N",
-             lobby_pct = "Lobby Org %")
+  cols_label(
+    predicted = "Predicted",
+    lobby_n = "Lobby Org N",
+    lobby_pct = "Lobby Org %"
+  )
 
 gtsave(gt_dc_table, here("outputs", "summary.rtf"))
 gtsave(gt_dc_table, here("outputs", "summary.png"))
@@ -256,22 +279,115 @@ w_lobby_n <- combined_df %>%
   filter(!is.na(predicted)) %>%
   group_by(predicted) %>%
   summarize(n = n()) %>%
-  mutate(freq = n/sum(n)) %>%
-  mutate(source = "Washington")
+  mutate(freq = n / sum(n)) %>%
+  mutate(source = "DC Organizations")
 
-mma_lobby_n <- mma %>%
+civic_mma <- civic_orgs %>% left_join(mma)
+
+mma_lobby_n <- civic_mma %>%
   filter(!is.na(predicted)) %>%
   group_by(predicted) %>%
   summarize(n = n()) %>%
-  mutate(freq = n/sum(n)) %>%
-  mutate(source = "MMA")
+  mutate(freq = n / sum(n)) %>%
+  mutate(source = "All Civic Opportunity Organizations")
 
-full_join(w_lobby_n, mma_lobby_n) %>%
-  ggplot(aes(x = fct_reorder(predicted, freq), y = freq, fill = source)) +
-  geom_col(posiiton = position_dodge2(width = 2)) +
-  theme(legend.position = "bottom") +
-  coord_flip() +
+joined_lobby_df <- full_join(w_lobby_n, mma_lobby_n)
+
+class_vec <- joined_lobby_df$predicted %>% unique()
+  
+joined_lobby_df <- joined_lobby_df %>%
+  mutate(class = case_match(predicted,
+                            class_vec[1] ~ "Arts & Cultural",
+                            class_vec[2] ~ "Political",
+                            class_vec[3] ~ "Community",
+                            class_vec[4] ~ "Economic",
+                            class_vec[5] ~ "Education",
+                            class_vec[6] ~ "Foundations",
+                            class_vec[7] ~ "Healthcare",
+                            class_vec[8] ~ "Hobby & Sports",
+                            class_vec[9] ~ "Housing",
+                            class_vec[10] ~ "Professional",
+                            class_vec[11] ~ "Religious",
+                            class_vec[12] ~ "Research & Think Tank",
+                            class_vec[13] ~ "Social & Fraternal",
+                            class_vec[14] ~ "Unions",
+                            class_vec[15] ~ "Youth"))
+
+cross_sec_plot <- joined_lobby_df %>%
+  ggplot(aes(x = fct_reorder(class, freq), y = freq, fill = source)) +
+  geom_col(position = position_dodge2(width = 0.9, preserve = "single")) +
   scale_y_continuous(labels = scales::percent) +
-  labs(x = "", y = "%")
+  labs(x = "", y = "Proportion", fill = "Type") +
+  coord_flip() +
+  theme_minimal() +
+  theme(legend.position = "bottom")
 
-ggsave(here("outputs", "lobby_civic_pct.png"), height = 12, width = 10)
+cross_sec_plot
+
+ggsave(here("outputs", "lobby_civic_pct.png"), height = 8, width = 5)
+
+civic_mma$irs_year <- substr(civic_mma$ruling, start = 1, stop = 4) %>% as.numeric()
+
+civic_mma_filtered <- civic_mma %>%
+  filter(irs_year != 0)
+
+civic_flow_df <- civic_mma_filtered %>%
+  mutate(period = case_when(
+    irs_year  < 1960 ~ "Pre-1960",
+    irs_year >= 2010 ~ "Post-2010",
+    .default = NA)) %>%
+  filter(!is.na(period)) %>%
+  mutate(class = case_match(predicted,
+                            class_vec[1] ~ "Arts & Cultural",
+                            class_vec[2] ~ "Political",
+                            class_vec[3] ~ "Community",
+                            class_vec[4] ~ "Economic",
+                            class_vec[5] ~ "Education",
+                            class_vec[6] ~ "Foundations",
+                            class_vec[7] ~ "Healthcare",
+                            class_vec[8] ~ "Hobby & Sports",
+                            class_vec[9] ~ "Housing",
+                            class_vec[10] ~ "Professional",
+                            class_vec[11] ~ "Religious",
+                            class_vec[12] ~ "Research & Think Tank",
+                            class_vec[13] ~ "Social & Fraternal",
+                            class_vec[14] ~ "Unions",
+                            class_vec[15] ~ "Youth")) 
+
+civic_flow_sum <- civic_flow_df %>%
+  filter(!is.na(predicted)) %>%
+  group_by(period, class) %>%
+  summarize(n = n()) %>%
+  mutate(freq = n/sum(n)) %>%
+  mutate(period = factor(period, levels = c("Pre-1960", "Post-2010")))
+
+civic_flow_plot <- civic_flow_sum %>%
+  ggplot(aes(x = period,
+             y = freq, 
+             stratum = class, 
+             alluvium = class, 
+             fill = class,
+             label = class)) + 
+  geom_flow(aes(fill = class),
+            aes.bind = "flows",
+            min.y = 0.05) +
+  geom_stratum() +
+  geom_label_repel(stat = "stratum", 
+                   box.padding = 0.5,
+                   size = 3) +
+  ggtitle("Pre-1960 and Post-2010 Civic Opportunity Organizations") +
+  labs(x = "", y = "Proportion", fill = "Category") +
+  guides(fill = guide_legend(ncol = 3)) +
+  theme(legend.position = "none") +
+  guides(fill = "none") +
+  scale_y_continuous(labels = scales::percent) +
+  theme_minimal()
+
+civic_flow_plot
+
+ggsave(here("outputs", "alluvial.png"), height = 8, width = 8)
+
+cross_sec_plot + civic_flow_plot + plot_annotation(tag_levels = "A")
+
+ggsave(here("outputs", "cross_flow.png"),
+       height = 8, width = 12)
