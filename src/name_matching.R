@@ -2,14 +2,23 @@
 if (!require(pacman)) install.packages("pacman")
 
 pacman::p_load(
-  tidyverse, here, haven, vroom,
-  fedmatch, fastLink, # fuzzy matching methods
-  purrr, future, furrr,
+  tidyverse, 
+  here, 
+  glue, 
+  haven, 
+  vroom,
+  fedmatch, 
+  fastLink, 
+  purrr, 
+  future, 
+  furrr,
   broom,
   MKinfer,
   modelsummary,
   gt,
-  ggalluvial
+  ggalluvial,
+  ggrepel,
+  patchwork
 )
 
 # load data
@@ -244,6 +253,8 @@ combined_df <- left_join(final_df %>% distinct(ein, state, lobby, name), mma)
 
 vroom_write(combined_df, here("processed_data", "joined_df.tsv.gz"))
 
+combined_df <- vroom::vroom(here("processed_data", "joined_df.tsv.gz"))
+
 # intersect
 dc_table <- combined_df %>%
   filter(!is.na(predicted)) %>%
@@ -311,10 +322,11 @@ joined_lobby_df <- joined_lobby_df %>%
                             class_vec[12] ~ "Research & Think Tank",
                             class_vec[13] ~ "Social & Fraternal",
                             class_vec[14] ~ "Unions",
-                            class_vec[15] ~ "Youth"))
+                            class_vec[15] ~ "Youth")) %>%
+  mutate(type = factor(source, levels = c("DC Organizations", "All Civic Opportunity Organizations")))
 
 cross_sec_plot <- joined_lobby_df %>%
-  ggplot(aes(x = fct_reorder(class, freq), y = freq, fill = source)) +
+  ggplot(aes(x = fct_reorder(class, freq), y = freq, fill = type)) +
   geom_col(position = position_dodge2(width = 0.9, preserve = "single")) +
   scale_y_continuous(labels = scales::percent) +
   labs(x = "", y = "Proportion", fill = "Type") +
@@ -361,27 +373,40 @@ civic_flow_sum <- civic_flow_df %>%
   mutate(freq = n/sum(n)) %>%
   mutate(period = factor(period, levels = c("Pre-1960", "Post-2010")))
 
+options(ggrepel.max.overlaps = Inf)
+
+civic_flow_sum$flow_change <- rep(civic_flow_sum$freq[1:15] - civic_flow_sum$freq[16:30], 2)
+
+civic_flow_sum <- civic_flow_sum %>%
+  mutate(class = fct_reorder(class, flow_change)) %>%
+  mutate(dir = ifelse(flow_change > 0, "Increase", "Decrease"))
+
 civic_flow_plot <- civic_flow_sum %>%
   ggplot(aes(x = period,
              y = freq, 
              stratum = class, 
-             alluvium = class, 
-             fill = class,
+             alluvium = flow_change, 
+             fill = dir,
              label = class)) + 
-  geom_flow(aes(fill = class),
-            aes.bind = "flows",
-            min.y = 0.05) +
-  geom_stratum() +
-  geom_label_repel(stat = "stratum", 
-                   box.padding = 0.5,
-                   size = 3) +
-  ggtitle("Pre-1960 and Post-2010 Civic Opportunity Organizations") +
-  labs(x = "", y = "Proportion", fill = "Category") +
-  guides(fill = guide_legend(ncol = 3)) +
-  theme(legend.position = "none") +
-  guides(fill = "none") +
+  geom_flow(stat = "alluvium",
+            color = "black",
+            cement.alluvia = TRUE,
+            aes(fill = dir),
+            aes.bind = "flows") +  
+  geom_stratum(alpha = .25) +
+  geom_label_repel(stat = "alluvium", 
+                   size = 3, 
+                   cement.alluvia = TRUE,
+                   show.legend = FALSE) +
+  ggtitle(glue(" Pre-1960 and Post-2010
+               Civic Opportunity Organizations")) +
+  labs(x = "", 
+       y = "Proportion", 
+       fill = "Proportion change",
+       label = "Proportion change") +
   scale_y_continuous(labels = scales::percent) +
-  theme_minimal()
+  theme_minimal() +
+  theme(legend.position = "bottom")
 
 civic_flow_plot
 
@@ -390,4 +415,4 @@ ggsave(here("outputs", "alluvial.png"), height = 8, width = 8)
 cross_sec_plot + civic_flow_plot + plot_annotation(tag_levels = "A")
 
 ggsave(here("outputs", "cross_flow.png"),
-       height = 8, width = 12)
+       height = 7, width = 10)
