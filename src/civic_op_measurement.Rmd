@@ -75,7 +75,7 @@ irs_activities <- irs_activities %>%
   replace_na(list(volunteer_text = 0, member_text = 0)) # without this, the following mutate won't work
 
 # orgs geolocated to FIPS
-irs_to_fips <- vroom(here("raw_data","irs_to_fips.csv"))
+irs_to_fips <- vroom(here("raw_data", "irs_to_fips.csv"))
 
 # FIPS (county-level)
 fips <- read_csv(here("raw_data", "fips_with_population.csv"), col_types = (ZCTA <- "c"))
@@ -92,7 +92,7 @@ po_status <- read_csv(here("raw_data", "irs_po_status.csv"))
 # other demographic data
 census_detail <- read_csv(here("raw_data", "census_zcta_detail_data.csv"), col_types = (GEOID <- "c"))
 
-#zcta_fips <- read_csv(here("raw_data", "zcta_cnts.csv"))
+# zcta_fips <- read_csv(here("raw_data", "zcta_cnts.csv"))
 
 census_subject <- read_csv(here("raw_data", "census_zcta_subject_data.csv"), col_types = (GEOID <- "c"))
 
@@ -135,9 +135,9 @@ org_activities_mbf <- org_activities_mbf %>%
 org_activities_mbf$extractable %>% sum() # 894,888
 
 org_activities_mbf$extractable %>% sum() / nrow(org_activities_mbf)
-  
+
 org_activities_mbf <- org_activities_mbf %>%
-  #filter(extractable == 1) %>% # this includes both websites and IRS
+  # filter(extractable == 1) %>% # this includes both websites and IRS
   filter(is_po != 1) # PO BOX
 
 nrow(org_activities_mbf) # 1,363,701
@@ -200,7 +200,7 @@ org_activities_mbf$opp_princomp <- prin_out$scores[, 1] # the first factor
 write_csv(org_activities_mbf, here("processed_data", "org_measures.csv"))
 
 civic_orgs <- org_activities_mbf %>%
-  filter(opp_mean > 0) 
+  filter(opp_mean > 0)
 
 write_csv(civic_orgs, here("processed_data", "civic_orgs.csv"))
 ```
@@ -267,8 +267,9 @@ con_plot <- unit_cor_df %>%
 
 con_plot
 
-ggsave(here("outputs", "con_plot.png"), 
-       height = 5, width = 5)
+ggsave(here("outputs", "con_plot.png"),
+  height = 5, width = 5
+)
 ```
 
 # Link org and census data at the county level
@@ -342,8 +343,8 @@ names(social_capital)[1] <- "FIPS"
 
 ```{r}
 cnts_counts <- org_activities_mbf %>%
-  #left_join(zcta_fips %>% select(ZCTA, FIPS)) %>%
-  #select(-ZCTA) %>%
+  # left_join(zcta_fips %>% select(ZCTA, FIPS)) %>%
+  # select(-ZCTA) %>%
   rename(FIPS = fips) %>%
   group_by(FIPS, grouping_value) %>%
   summarise(m = max(opp_mean, na.rm = T)) %>%
@@ -394,11 +395,11 @@ dd_sd %>%
 map_trade_off <- left_join(
   dd %>%
     group_by(State) %>%
-    mutate(higher_cnts = opc_tile > 4) %>%
+    mutate(higher_cnts = opc_tile >= 4) %>%
     summarize(pct_higher_cnts = mean(higher_cnts)),
   dd %>%
     group_by(State) %>%
-    mutate(lower_cnts = opc_tile < 2) %>%
+    mutate(lower_cnts = opc_tile <= 2) %>%
     summarize(pct_lower_cnts = mean(lower_cnts))
 )
 
@@ -413,8 +414,8 @@ map_trade_off %>%
   geom_text_repel() +
   coord_flip() +
   labs(
-    x = "% of 1 graded counties",
-    y = "% of 5 graded counties"
+    x = "% of 1 or 2 graded counties",
+    y = "% of 4 or 5 graded counties"
   ) +
   scale_x_continuous(label = scales::percent) +
   scale_y_continuous(label = scales::percent) +
@@ -606,7 +607,7 @@ us_county_map <- tm_shape(sj_state) +
     midpoint = 3,
     colorNA = "grey50",
     title = "Civic opportunity index",
-    border.alpha = 0.5, 
+    border.alpha = 0.5,
     border.col = "grey80"
   ) +
   tm_layout(
