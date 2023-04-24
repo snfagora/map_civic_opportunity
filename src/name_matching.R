@@ -293,14 +293,23 @@ w_lobby_n <- combined_df %>%
   mutate(freq = n / sum(n)) %>%
   mutate(source = "DC Organizations")
 
-civic_mma <- civic_orgs %>% left_join(mma)
+civic_mma <- civic_orgs %>% 
+  left_join(mma)
 
+civic_freq <- civic_mma %>%
+  group_by(predicted) %>%
+  summarize(n = n()) %>%
+  mutate(freq = n / sum(n)) %>%
+  arrange(desc(freq))
+
+civic_freq$freq[1] + civic_freq$freq[2]
+  
 mma_lobby_n <- civic_mma %>%
   filter(!is.na(predicted)) %>%
   group_by(predicted) %>%
   summarize(n = n()) %>%
   mutate(freq = n / sum(n)) %>%
-  mutate(source = "All Civic Opportunity Organizations")
+  mutate(source = "Civic Opportunity Organizations")
 
 joined_lobby_df <- full_join(w_lobby_n, mma_lobby_n)
 
@@ -323,7 +332,7 @@ joined_lobby_df <- joined_lobby_df %>%
                             class_vec[13] ~ "Social & Fraternal",
                             class_vec[14] ~ "Unions",
                             class_vec[15] ~ "Youth")) %>%
-  mutate(type = factor(source, levels = c("DC Organizations", "All Civic Opportunity Organizations")))
+  mutate(type = factor(source, levels = c("DC Organizations", "Civic Opportunity Organizations")))
 
 cross_sec_plot <- joined_lobby_df %>%
   ggplot(aes(x = fct_reorder(class, freq), y = freq, fill = type)) +
@@ -381,6 +390,10 @@ civic_flow_sum <- civic_flow_sum %>%
   mutate(class = fct_reorder(class, flow_change)) %>%
   mutate(dir = ifelse(flow_change > 0, "Increase", "Decrease"))
 
+civic_flow_sum %>%
+  filter(str_detect(period, "Post")) %>%
+  arrange(desc(freq))
+
 civic_flow_plot <- civic_flow_sum %>%
   ggplot(aes(x = period,
              y = freq, 
@@ -395,7 +408,7 @@ civic_flow_plot <- civic_flow_sum %>%
             aes.bind = "flows") +  
   geom_stratum(alpha = .25) +
   geom_label_repel(stat = "alluvium", 
-                   size = 3, 
+                   size = 3.5, 
                    cement.alluvia = TRUE,
                    show.legend = FALSE) +
   ggtitle(glue(" Pre-1960 and Post-2010
@@ -412,7 +425,7 @@ civic_flow_plot
 
 ggsave(here("outputs", "alluvial.png"), height = 8, width = 8)
 
-cross_sec_plot + civic_flow_plot + plot_annotation(tag_levels = "A")
+civic_flow_plot + cross_sec_plot + plot_annotation(tag_levels = "A")
 
 ggsave(here("outputs", "cross_flow.png"),
        height = 7, width = 10)
