@@ -596,7 +596,9 @@ combined_unique <- read_rds(here("processed_data", "combined_unique.rds"))
 ```{r}
 # Define the color palette
 my_palette <- RColorBrewer::brewer.pal(5, "Greens")
+```
 
+```{r}
 # Create the map
 us_county_map <- tm_shape(sj_state) +
   tm_borders(lwd = 2, col = "black") +
@@ -619,4 +621,19 @@ us_county_map <- tm_shape(sj_state) +
 
 # Save the static map
 tmap_save(us_county_map, file = here("outputs", "us_county_map.png"))
+```
+
+```{r}
+# ggplot version with the state border
+
+gg_map <- ggplot() +
+  geom_sf(data = combined_unique, aes(fill = as.factor(opc_tile), geometry = geometry), color = "white", size = 0.2) +
+  scale_fill_manual(values = my_palette) +
+  geom_sf(data = sj, aes(geometry = geometry), fill = "transparent", color = gray(0.8), inherit.aes = FALSE) +
+  geom_sf(data = sj_state, aes(geometry = geometry), fill = "transparent", color = "black", inherit.aes = FALSE) +
+  theme_bw() +
+  theme(legend.position = "bottom", axis.line = element_blank(), axis.text.x = element_blank(), axis.text.y = element_blank(), axis.ticks = element_blank(), axis.title.x = element_blank(), axis.title.y = element_blank()) +
+  labs(fill = "Civic opportuntiy index")
+
+ggsave(gg_map, file = here("outputs", "us_county_map.png"))
 ```
