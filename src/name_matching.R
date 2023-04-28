@@ -255,7 +255,8 @@ vroom_write(combined_df, here("processed_data", "joined_df.tsv.gz"))
 
 combined_df <- vroom::vroom(here("processed_data", "joined_df.tsv.gz"))
 
-# intersect
+# summary tables
+
 dc_table <- combined_df %>%
   filter(!is.na(predicted)) %>%
   # mutate(lobby = tidyr::replace_na(lobby, 0)) %>%
@@ -264,27 +265,48 @@ dc_table <- combined_df %>%
     n = n(),
     lobby_n = sum(lobby, na.rm = T)
   ) %>%
-  mutate(lobby_pct = lobby_n / n) %>%
-  select(predicted, lobby_n, lobby_pct)
-
-dc_table
+  mutate(lobby_pct = lobby_n / sum(lobby_n)) %>%
+  select(predicted, lobby_n, lobby_pct) 
 
 write_csv(dc_table, here("processed_data", "dc_table.csv"))
 
+dc_class_vec <- dc_table$predicted %>% unique()
+
+dc_table <- dc_table %>%
+  mutate(class = case_match(predicted,
+                            class_vec[1] ~ "Arts & Cultural",
+                            class_vec[2] ~ "Political",
+                            class_vec[3] ~ "Community",
+                            class_vec[4] ~ "Economic",
+                            class_vec[5] ~ "Education",
+                            class_vec[6] ~ "Foundations",
+                            class_vec[7] ~ "Healthcare",
+                            class_vec[8] ~ "Hobby & Sports",
+                            class_vec[9] ~ "Housing",
+                            class_vec[10] ~ "Professional",
+                            class_vec[11] ~ "Religious",
+                            class_vec[12] ~ "Research & Think Tank",
+                            class_vec[13] ~ "Social & Fraternal",
+                            class_vec[14] ~ "Unions",
+                            class_vec[15] ~ "Youth"))
+
 gt_dc_table <- dc_table %>%
+  arrange(desc(lobby_pct)) %>%
+  select(-predicted) %>%
+  select(class, lobby_n, lobby_pct) %>%
   gt() %>%
   fmt_percent(
     columns = c("lobby_pct"),
     decimals = 1
   ) %>%
   cols_label(
-    predicted = "Predicted",
-    lobby_n = "Lobby Org N",
-    lobby_pct = "Lobby Org %"
+    class = "Predicted category",
+    lobby_n = "The number of lobbying organizations",
+    lobby_pct = "The percentage of lobbying organizations"
   )
 
-gtsave(gt_dc_table, here("outputs", "summary.rtf"))
-gtsave(gt_dc_table, here("outputs", "summary.png"))
+gtsave(gt_dc_table, here("outputs", "dc_lobby_summary.rtf"))
+gtsave(gt_dc_table, here("outputs", "dc_lobby_summary.png"))
 
 w_lobby_n <- combined_df %>%
   filter(!is.na(predicted)) %>%
@@ -429,3 +451,31 @@ civic_flow_plot + cross_sec_plot + plot_annotation(tag_levels = "A")
 
 ggsave(here("outputs", "cross_flow.png"),
        height = 7, width = 10)
+
+all_period_table <- left_join(
+civic_flow_df %>%
+  group_by(class) %>%
+  count() %>%
+  rename(all = n),
+
+civic_flow_df %>%
+  group_by(class, period) %>%
+  count() %>%
+  pivot_wider(
+    names_from = period, 
+    values_from = n
+    )) %>%
+  filter(!is.na(class)) 
+
+all_period_gt <- all_period_table %>%
+  as_data_frame() %>%
+  select(class, all, `Pre-1960`, `Post-2010`) %>%
+  gt() %>%
+  cols_label(
+    class = "Predicted category",
+    all = "All civic opportunity organizations",
+    `Post-2010` = "Pre-1960 civic opportunity organizations",
+    `Pre-1960` = "Post-2010 civic opportunity organizations"
+  )
+
+gtsave(all_period_gt, here("outputs", "all_period_gt.rtf"))
