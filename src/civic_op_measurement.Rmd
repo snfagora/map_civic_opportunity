@@ -495,7 +495,7 @@ gtsave(disc_table, here("outputs", "disc_table.docx"))
 ```{r}
 corr_mod <- dd %>%
   # group_by(State) %>%
-  do(tidy(standardize(lm_robust(formula = opc_tile ~ race_per_white_nonhispanic + per_poverty + college_educ, data = .)))) # Here standardize refers to refitting the model with standardized data (https://cran.r-project.org/web/packages/effectsize/vignettes/effectsize.html) z-scoring
+  do(tidy(standardize(lm_robust(formula = opc ~ race_per_white_nonhispanic + per_poverty + college_educ, data = .)))) # Here standardize refers to refitting the model with standardized data (https://cran.r-project.org/web/packages/effectsize/vignettes/effectsize.html) z-scoring
 
 corr_mod_rc <- dd %>%
   # group_by(State) %>%
@@ -538,6 +538,12 @@ pred_plot <- corr_mod_bind %>%
 pred_plot
 
 ggsave(here("outputs", "pred_plot.png"), height = 6, width = 6)
+
+(0.4-0.34)/0.34
+
+(0.03-0.01)/0.01
+
+(0.2 - 0.23)/0.23
 ```
 # Civic opportunity and inequality
 
