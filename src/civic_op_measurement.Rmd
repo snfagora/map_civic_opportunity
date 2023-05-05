@@ -36,7 +36,9 @@ pacman::p_load(
   usdata
 )
 
-devtools::install_github("graemeblair/stdidx")
+# if the following pkg is not installed 
+# devtools::install_github("graemeblair/stdidx")
+
 library(stdidx)
 
 options(es.use_symbols = TRUE) # get nice symbols
@@ -89,18 +91,23 @@ social_capital <- read_csv(here("raw_data", "social_capital.csv"))
 # PO BOX status
 po_status <- read_csv(here("raw_data", "irs_po_status.csv"))
 
-# other demographic data
-census_detail <- read_csv(here("raw_data", "census_zcta_detail_data.csv"), col_types = (GEOID <- "c"))
-
-# zcta_fips <- read_csv(here("raw_data", "zcta_cnts.csv"))
-
-census_subject <- read_csv(here("raw_data", "census_zcta_subject_data.csv"), col_types = (GEOID <- "c"))
+# County-level demographic data 
 
 county_class <- read_csv(here("raw_data", "County_Classifications.csv"))
 
-# county_mutual <- read_csv(here("raw_data", "reproduction_data_mutual_aid_hubs_county.csv"))
-
 names(county_class)[1] <- "FIPS"
+
+# ZCTA-level civic opportunity data for the LA map
+
+zcta_cnts <- read_csv(here("processed_data", "zcta_counts_idx_mean_nonpo.csv"))
+
+# ZCTA-level demographic data 
+# other demographic data
+zcta_detail <- read_csv(here("raw_data", "census_zcta_detail_data.csv"), col_types = (GEOID <- "c"))
+
+la_zip_df <- read_csv(here("raw_data", "zipcode_la.csv"))
+
+la_zip_shp <- read_sf(here("raw_data", "Zip_Codes_(LA_County).shp"))
 ```
 
 # Create a sampling frame
@@ -374,7 +381,8 @@ dd <- dd %>%
     opc_rank = percent_rank(opc),
     opc_cume_dist = cume_dist(opc)
   ) %>%
-  mutate(all_org = 1000 * n / population_total)
+  mutate(all_org = 1000 * n / population_total,
+         all_org_tile = ntile(all_org, 5))
 ```
 
 ```{r}
@@ -489,14 +497,6 @@ corr_mod <- dd %>%
   # group_by(State) %>%
   do(tidy(standardize(lm_robust(formula = opc_tile ~ race_per_white_nonhispanic + per_poverty + college_educ, data = .)))) # Here standardize refers to refitting the model with standardized data (https://cran.r-project.org/web/packages/effectsize/vignettes/effectsize.html) z-scoring
 
-corr_mod_rank <- dd %>%
-  # group_by(State) %>%
-  do(tidy(standardize(lm_robust(formula = opc_rank ~ race_per_white_nonhispanic + per_poverty + college_educ, data = .)))) # Here standardize refers to refitting the model with standardized data (https://cran.r-project.org/web/packages/effectsize/vignettes/effectsize.html) z-scoring
-
-corr_mod_cume_dist <- dd %>%
-  # group_by(State) %>%
-  do(tidy(standardize(lm_robust(formula = opc_cume_dist ~ race_per_white_nonhispanic + per_poverty + college_educ, data = .)))) # Here standardize refers to refitting the model with standardized data (https://cran.r-project.org/web/packages/effectsize/vignettes/effectsize.html) z-scoring
-
 corr_mod_rc <- dd %>%
   # group_by(State) %>%
   do(tidy(standardize(lm_robust(formula = all_org ~ race_per_white_nonhispanic + per_poverty + college_educ, data = .))))
@@ -539,8 +539,61 @@ pred_plot
 
 ggsave(here("outputs", "pred_plot.png"), height = 6, width = 6)
 ```
+# Civic opportunity and inequality
+
+```{r}
+# Civic opportunity and inequality
+
+bind_rows(lm_robust(opc ~ per_poverty, data = dd) %>% tidy() %>% slice(-1),
+lm_robust(opc ~ college_educ, data = dd) %>% tidy() %>% slice(-1),
+lm_robust(opc ~ race_per_white_nonhispanic, data = dd) %>% tidy() %>% slice(-1)) %>%
+   mutate(term = recode(term,
+    "race_per_white_nonhispanic" = "Non-hispanic white (%)",
+    "per_poverty" = "Federal poverty level (%)",
+    "college_educ" = "College educated (%)"
+  )) %>%
+  ggplot(aes(x = term, y = estimate, ymax = conf.high, ymin = conf.low)) +
+  geom_pointrange() +
+  labs(x = "", y = "Estimated regression coefficient") +
+  coord_flip() +
+  geom_hline(yintercept = 0, linetype = "dashed", col = "red") +
+  geom_text_repel(aes(y = estimate, label = round(estimate, 2), size = 1.5),
+    position = position_dodge(width = 0.9),
+    col = "black",
+    show.legend = FALSE
+  )
+
+ggsave(here("outputs", "civic_opp_inequality.png"))
+```
 
 # Create a map
+
+## Create LA data 
+
+```{r}
+la_zipcodes <- la_zip_df$ZIP %>% as.character()
+
+zcta_detail$ZCTA <- zcta_detail$GEOID
+
+zcta_combined <- zcta_cnts %>% right_join(
+    zcta_detail %>%
+    select(ZCTA, population_total)
+  ) %>%
+  filter(!is.na(population_total)) %>%
+  mutate(opc = 1000 * mean_sum / population_total) %>%
+  mutate(
+    opc_tile = ntile(opc, 5),
+  )
+
+la_zcta_cnts <- zcta_combined %>%
+  filter(ZCTA %in% la_zipcodes) 
+
+# get LA shape file 
+
+la_zip_shp$ZCTA <- as.character(la_zip_shp$ZIP)
+
+la_map_cnts <- merge(la_zcta_cnts, la_zip_shp)
+```
 
 ## Join and shape 
 
@@ -562,6 +615,7 @@ write_rds(sj_state, here("processed_data", "sj_state.rds"))
 
 ```{r}
 sj <- read_rds(here("processed_data", "sj.rds"))
+
 sj_state <- read_rds(here("processed_data", "sj_state.rds"))
 ```
 
@@ -626,14 +680,37 @@ tmap_save(us_county_map, file = here("outputs", "us_county_map.png"))
 ```{r}
 # ggplot version with the state border
 
-gg_map <- ggplot() +
+national_map <- ggplot() +
   geom_sf(data = combined_unique, aes(fill = as.factor(opc_tile), geometry = geometry), color = "white", size = 0.2) +
-  scale_fill_manual(values = my_palette) +
+  scale_fill_manual(labels = c(1:5, "No Data"), values = my_palette) +
   geom_sf(data = sj, aes(geometry = geometry), fill = "transparent", color = gray(0.8), inherit.aes = FALSE) +
   geom_sf(data = sj_state, aes(geometry = geometry), fill = "transparent", color = "black", inherit.aes = FALSE) +
   theme_bw() +
   theme(legend.position = "bottom", axis.line = element_blank(), axis.text.x = element_blank(), axis.text.y = element_blank(), axis.ticks = element_blank(), axis.title.x = element_blank(), axis.title.y = element_blank()) +
   labs(fill = "Civic opportuntiy index")
+```
 
-ggsave(gg_map, file = here("outputs", "us_county_map.png"))
+```{r}
+# No islands
+la_zip_shp <- la_zip_shp %>%
+  filter(ZCTA != "90704")
+
+la_map_cnts <- la_map_cnts %>%
+  filter(ZCTA != "90704")
+```
+
+```{r}
+la_map <- ggplot() +
+  geom_sf(data = la_map_cnts, aes(fill = as.factor(opc_tile), geometry = geometry), color = "white", size = 0.2) +
+  scale_fill_manual(labels = c(1:5, "No Data"), values = my_palette) +
+  geom_sf(data = la_zip_shp_no_islands, aes(geometry = geometry), fill = "transparent", color = gray(0.8), inherit.aes = FALSE) +
+  theme_bw() +
+  theme(legend.position = "bottom", axis.line = element_blank(), axis.text.x = element_blank(), axis.text.y = element_blank(), axis.ticks = element_blank(), axis.title.x = element_blank(), axis.title.y = element_blank()) +
+  labs(fill = "Civic opportuntiy index")
+```
+
+```{r}
+national_map + la_map + plot_annotation(tag_levels = "A") + plot_layout(guides = "collect")
+
+ggsave(file = here("outputs", "us_map.png"), width = 10, height = 7)
 ```
