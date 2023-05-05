@@ -544,6 +544,41 @@ ggsave(here("outputs", "pred_plot.png"), height = 6, width = 6)
 ```{r}
 # Civic opportunity and inequality
 
+poverty_plot <- dd %>%
+  ggplot(aes(x = opc, y= per_poverty)) +
+  geom_jitter(alpha = 0.05) +
+  geom_smooth(method = "lm", se = FALSE) +
+  ylim(c(0, 1)) +
+  labs(x = glue("Civic opportunity scores 
+                per capita"),
+       y = "Federal poverty level") +
+  scale_y_continuous(label = scales::percent, limits = c(0,1))
+
+college_edu_plot <- dd %>%
+  ggplot(aes(x = opc, y= college_educ)) +
+  geom_jitter(alpha = 0.05) +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(x = glue("Civic opportunity scores 
+                per capita"),
+       y = "College educated") +
+  scale_y_continuous(label = scales::percent, limits = c(0,1))
+
+white_plot <- dd %>%
+  ggplot(aes(x = opc, y= race_per_white_nonhispanic)) +
+  geom_jitter(alpha = 0.05) +
+  geom_smooth(method = "lm", se = FALSE) +
+  ylim(c(0, 1)) +
+  labs(x = glue("Civic opportunity scores 
+                per capita"),
+       y = "Non-hispanic white") +
+  scale_y_continuous(label = scales::percent, limits = c(0,1))
+
+poverty_plot + college_edu_plot + white_plot + plot_annotation(tag_levels = "A")
+
+ggsave(here("outputs", "civic_inequ_asso.png"), width = 9, height = 7)
+```
+
+```{r}
 bind_rows(lm_robust(opc ~ per_poverty, data = dd) %>% tidy() %>% slice(-1),
 lm_robust(opc ~ college_educ, data = dd) %>% tidy() %>% slice(-1),
 lm_robust(opc ~ race_per_white_nonhispanic, data = dd) %>% tidy() %>% slice(-1)) %>%
@@ -551,19 +586,7 @@ lm_robust(opc ~ race_per_white_nonhispanic, data = dd) %>% tidy() %>% slice(-1))
     "race_per_white_nonhispanic" = "Non-hispanic white (%)",
     "per_poverty" = "Federal poverty level (%)",
     "college_educ" = "College educated (%)"
-  )) %>%
-  ggplot(aes(x = term, y = estimate, ymax = conf.high, ymin = conf.low)) +
-  geom_pointrange() +
-  labs(x = "", y = "Estimated regression coefficient") +
-  coord_flip() +
-  geom_hline(yintercept = 0, linetype = "dashed", col = "red") +
-  geom_text_repel(aes(y = estimate, label = round(estimate, 2), size = 1.5),
-    position = position_dodge(width = 0.9),
-    col = "black",
-    show.legend = FALSE
-  )
-
-ggsave(here("outputs", "civic_opp_inequality.png"))
+  ))
 ```
 
 # Create a map
