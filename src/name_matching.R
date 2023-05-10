@@ -104,6 +104,7 @@ washington %>%
     sum_union = sum(cat_union),
     sum_prof = sum(cat_prof)
   )
+
 # 204 unions, 4,800 professional organizations (broadly construed)
 
 ## MMA data
@@ -138,11 +139,13 @@ washington$orgname <- clean_strings(washington$orgname)
 mma$name <- clean_strings(mma$name)
 
 # raw status
+
 intersect(washington$orgname, mma$name) %>%
   unique() %>%
   length() # only 2,020 names are matched
 
 # fuzzy name matching
+
 states <- intersect(washington$location, mma$state)
 
 ## Using fedmatch
@@ -363,7 +366,7 @@ cross_sec_plot <- joined_lobby_df %>%
   labs(x = "", y = "Proportion", fill = "Type") +
   coord_flip() +
   theme_minimal() +
-  theme(legend.position = "bottom")
+  theme(legend.position = "bottom") 
 
 cross_sec_plot
 
@@ -433,8 +436,6 @@ civic_flow_plot <- civic_flow_sum %>%
                    size = 3.5, 
                    cement.alluvia = TRUE,
                    show.legend = FALSE) +
-  ggtitle(glue(" Pre-1960 and Post-2010
-               Civic Opportunity Organizations")) +
   labs(x = "", 
        y = "Proportion", 
        fill = "Proportion change",
