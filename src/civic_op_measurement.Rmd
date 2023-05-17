@@ -17,6 +17,7 @@ pacman::p_load(
   purrr,
   estimatr,
   effectsize,
+  sandwich,
   ggrepel,
   patchwork,
   corrplot,
@@ -36,7 +37,7 @@ pacman::p_load(
   usdata
 )
 
-# if the following pkg is not installed 
+# if the following pkg is not installed
 # devtools::install_github("graemeblair/stdidx")
 
 library(stdidx)
@@ -91,7 +92,7 @@ social_capital <- read_csv(here("raw_data", "social_capital.csv"))
 # PO BOX status
 po_status <- read_csv(here("raw_data", "irs_po_status.csv"))
 
-# County-level demographic data 
+# County-level demographic data
 
 county_class <- read_csv(here("raw_data", "County_Classifications.csv"))
 
@@ -101,7 +102,7 @@ names(county_class)[1] <- "FIPS"
 
 zcta_cnts <- read_csv(here("processed_data", "zcta_counts_idx_mean_nonpo.csv"))
 
-# ZCTA-level demographic data 
+# ZCTA-level demographic data
 # other demographic data
 zcta_detail <- read_csv(here("raw_data", "census_zcta_detail_data.csv"), col_types = (GEOID <- "c"))
 
@@ -381,8 +382,10 @@ dd <- dd %>%
     opc_rank = percent_rank(opc),
     opc_cume_dist = cume_dist(opc)
   ) %>%
-  mutate(all_org = 1000 * n / population_total,
-         all_org_tile = ntile(all_org, 5))
+  mutate(
+    all_org = 1000 * n / population_total,
+    all_org_tile = ntile(all_org, 5)
+  )
 ```
 
 ```{r}
@@ -539,11 +542,11 @@ pred_plot
 
 ggsave(here("outputs", "pred_plot.png"), height = 6, width = 6)
 
-(0.4-0.34)/0.34
+(0.4 - 0.34) / 0.34
 
-(0.03-0.01)/0.01
+(0.03 - 0.01) / 0.01
 
-(0.2 - 0.23)/0.23
+(0.2 - 0.23) / 0.23
 ```
 # Civic opportunity and inequality
 
@@ -551,33 +554,40 @@ ggsave(here("outputs", "pred_plot.png"), height = 6, width = 6)
 # Civic opportunity and inequality
 
 poverty_plot <- dd %>%
-  ggplot(aes(x = opc, y= per_poverty)) +
+  ggplot(aes(x = opc, y = per_poverty)) +
   geom_jitter(alpha = 0.05) +
-  geom_smooth(method = "lm", se = FALSE) +
-  ylim(c(0, 1)) +
-  labs(x = glue("Civic opportunity scores 
-                per capita"),
-       y = "Federal poverty level") +
-  scale_y_continuous(label = scales::percent, limits = c(0,1))
+  geom_smooth(method = "lm", level = 0.95) +
+  labs(
+    x = glue("Civic opportunity scores"),
+    y = "Federal poverty level"
+  ) +
+  scale_y_continuous(label = scales::percent, limits = c(0, 1)) +
+  xlim(c(0, 5)) +
+  coord_flip()
 
 college_edu_plot <- dd %>%
-  ggplot(aes(x = opc, y= college_educ)) +
+  ggplot(aes(x = opc, y = college_educ)) +
   geom_jitter(alpha = 0.05) +
-  geom_smooth(method = "lm", se = FALSE) +
-  labs(x = glue("Civic opportunity scores 
-                per capita"),
-       y = "College educated") +
-  scale_y_continuous(label = scales::percent, limits = c(0,1))
+  geom_smooth(method = "lm", level = 0.95) +
+  labs(
+    x = glue("Civic opportunity scores"),
+    y = "College educated"
+  ) +
+  scale_y_continuous(label = scales::percent, limits = c(0, 1)) +
+  xlim(c(0, 5)) +
+  coord_flip()
 
 white_plot <- dd %>%
-  ggplot(aes(x = opc, y= race_per_white_nonhispanic)) +
+  ggplot(aes(x = opc, y = race_per_white_nonhispanic)) +
   geom_jitter(alpha = 0.05) +
-  geom_smooth(method = "lm", se = FALSE) +
-  ylim(c(0, 1)) +
-  labs(x = glue("Civic opportunity scores 
-                per capita"),
-       y = "Non-hispanic white") +
-  scale_y_continuous(label = scales::percent, limits = c(0,1))
+  geom_smooth(method = "lm", level = 0.95) +
+  labs(
+    x = glue("Civic opportunity scores"),
+    y = "Non-hispanic white"
+  ) +
+  scale_y_continuous(label = scales::percent, limits = c(0, 1)) +
+  xlim(c(0, 5)) +
+  coord_flip()
 
 poverty_plot + college_edu_plot + white_plot + plot_annotation(tag_levels = "A")
 
@@ -585,14 +595,77 @@ ggsave(here("outputs", "civic_inequ_asso.png"), width = 9, height = 7)
 ```
 
 ```{r}
-bind_rows(lm_robust(opc ~ per_poverty, data = dd) %>% tidy() %>% slice(-1),
-lm_robust(opc ~ college_educ, data = dd) %>% tidy() %>% slice(-1),
-lm_robust(opc ~ race_per_white_nonhispanic, data = dd) %>% tidy() %>% slice(-1)) %>%
-   mutate(term = recode(term,
-    "race_per_white_nonhispanic" = "Non-hispanic white (%)",
-    "per_poverty" = "Federal poverty level (%)",
-    "college_educ" = "College educated (%)"
-  ))
+poverty2_plot <- dd %>%
+  ggplot(aes(x = opc, y = per_poverty)) +
+  geom_jitter(aes(x = opc), alpha = 0.05, color = "blue") +
+  geom_smooth(aes(x = opc), method = "lm", level = 0.95, color = "blue") +
+  geom_jitter(aes(x = all_org), alpha = 0.05, color = "red") +
+  geom_smooth(aes(x = all_org), method = "lm", level = 0.95, color = "red") +
+  labs(
+    x = glue("Civic opportunity scores
+                per capita"),
+    y = "Federal poverty level"
+  ) +
+  scale_y_continuous(label = scales::percent, limits = c(0, 1)) +
+  xlim(c(0, 5))
+
+edu2_plot <- dd %>%
+  ggplot(aes(y = college_educ)) +
+  geom_jitter(aes(x = opc), alpha = 0.05, color = "blue") +
+  geom_smooth(aes(x = opc), method = "lm", level = 0.95, color = "blue") +
+  geom_jitter(aes(x = all_org), alpha = 0.05, color = "red") +
+  geom_smooth(aes(x = all_org), method = "lm", level = 0.95, color = "red") +
+  labs(
+    x = glue("Per capita measures"),
+    y = "College educated"
+  ) +
+  scale_y_continuous(label = scales::percent, limits = c(0, 1)) +
+  xlim(c(0, 5))
+
+white2_plot <- dd %>%
+  ggplot(aes(x = opc, y = race_per_white_nonhispanic)) +
+  geom_jitter(aes(x = opc), alpha = 0.05, color = "blue") +
+  geom_smooth(aes(x = opc), method = "lm", level = 0.95, color = "blue") +
+  geom_jitter(aes(x = all_org), alpha = 0.05, color = "red") +
+  geom_smooth(aes(x = all_org), method = "lm", level = 0.95, color = "red") +
+  labs(
+    x = glue("Civic opportunity scores
+                per capita"),
+    y = "Non-hispanic white"
+  ) +
+  scale_y_continuous(label = scales::percent, limits = c(0, 1)) +
+  xlim(c(0, 5))
+
+poverty2_plot + edu2_plot + white2_plot + plot_annotation(tag_levels = "A")
+
+ggsave(here("outputs", "civic_inequ_asso2.png"), width = 9, height = 7)
+```
+
+```{r}
+mod_comp_list <- list(
+  "Civic opportunity" = standardise(lm_robust(opc ~ per_poverty, data = dd)),
+  "Organizational density" = standardise(lm_robust(all_org ~ per_poverty, data = dd)),
+  "Civic opportunity" = standardise(lm_robust(opc ~ college_educ, data = dd)),
+  "Organizational density" = standardise(lm_robust(all_org ~ college_educ, data = dd)),
+  "Civic opportunity" = standardise(lm_robust(opc ~ race_per_white_nonhispanic, data = dd)),
+  "Organizational density" = standardise(lm_robust(all_org ~ race_per_white_nonhispanic, data = dd))
+)
+```
+
+```{r}
+modelsummary(mod_comp_list,
+  fmt = 3,
+  estimate = c("{estimate} ({std.error}){stars}"),
+  statistic = NULL,
+  coef_omit = "Intercept",
+  coef_map =
+    c(
+      "race_per_white_nonhispanic" = "Non-hispanic white",
+      "per_poverty" = "Federal poverty level",
+      "college_educ" = "College educated"
+    ),
+  output = here("outputs", "reg_two_measures.docx")
+)
 ```
 
 # Create a map
@@ -604,9 +677,10 @@ la_zipcodes <- la_zip_df$ZIP %>% as.character()
 
 zcta_detail$ZCTA <- zcta_detail$GEOID
 
-zcta_combined <- zcta_cnts %>% right_join(
+zcta_combined <- zcta_cnts %>%
+  right_join(
     zcta_detail %>%
-    select(ZCTA, population_total)
+      select(ZCTA, population_total)
   ) %>%
   filter(!is.na(population_total)) %>%
   mutate(opc = 1000 * mean_sum / population_total) %>%
@@ -615,9 +689,9 @@ zcta_combined <- zcta_cnts %>% right_join(
   )
 
 la_zcta_cnts <- zcta_combined %>%
-  filter(ZCTA %in% la_zipcodes) 
+  filter(ZCTA %in% la_zipcodes)
 
-# get LA shape file 
+# get LA shape file
 
 la_zip_shp$ZCTA <- as.character(la_zip_shp$ZIP)
 
