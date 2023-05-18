@@ -98,14 +98,19 @@ county_class <- read_csv(here("raw_data", "County_Classifications.csv"))
 
 names(county_class)[1] <- "FIPS"
 
+# County-level org data 
+county_soc <- read_csv(here("raw_data", "penn_state_social_capital.csv"))
+
 # ZCTA-level civic opportunity data for the LA map
 
 zcta_cnts <- read_csv(here("processed_data", "zcta_counts_idx_mean_nonpo.csv"))
 
 # ZCTA-level demographic data
-# other demographic data
+
+## other demographic data
 zcta_detail <- read_csv(here("raw_data", "census_zcta_detail_data.csv"), col_types = (GEOID <- "c"))
 
+## for the map 
 la_zip_df <- read_csv(here("raw_data", "zipcode_la.csv"))
 
 la_zip_shp <- read_sf(here("raw_data", "Zip_Codes_(LA_County).shp"))
@@ -496,6 +501,13 @@ gtsave(disc_table, here("outputs", "disc_table.docx"))
 # Predictive validity 
 
 ```{r}
+# join with the Penn State social capital data
+dd <- dd %>% left_join(county_soc %>% 
+                   mutate(FIPS = as.character(FIPS)) %>%
+                   select(FIPS, sk2014))
+```
+
+```{r}
 corr_mod <- dd %>%
   # group_by(State) %>%
   do(tidy(standardize(lm_robust(formula = opc ~ race_per_white_nonhispanic + per_poverty + college_educ, data = .)))) # Here standardize refers to refitting the model with standardized data (https://cran.r-project.org/web/packages/effectsize/vignettes/effectsize.html) z-scoring
@@ -595,60 +607,13 @@ ggsave(here("outputs", "civic_inequ_asso.png"), width = 9, height = 7)
 ```
 
 ```{r}
-poverty2_plot <- dd %>%
-  ggplot(aes(x = opc, y = per_poverty)) +
-  geom_jitter(aes(x = opc), alpha = 0.05, color = "blue") +
-  geom_smooth(aes(x = opc), method = "lm", level = 0.95, color = "blue") +
-  geom_jitter(aes(x = all_org), alpha = 0.05, color = "red") +
-  geom_smooth(aes(x = all_org), method = "lm", level = 0.95, color = "red") +
-  labs(
-    x = glue("Civic opportunity scores
-                per capita"),
-    y = "Federal poverty level"
-  ) +
-  scale_y_continuous(label = scales::percent, limits = c(0, 1)) +
-  xlim(c(0, 5))
-
-edu2_plot <- dd %>%
-  ggplot(aes(y = college_educ)) +
-  geom_jitter(aes(x = opc), alpha = 0.05, color = "blue") +
-  geom_smooth(aes(x = opc), method = "lm", level = 0.95, color = "blue") +
-  geom_jitter(aes(x = all_org), alpha = 0.05, color = "red") +
-  geom_smooth(aes(x = all_org), method = "lm", level = 0.95, color = "red") +
-  labs(
-    x = glue("Per capita measures"),
-    y = "College educated"
-  ) +
-  scale_y_continuous(label = scales::percent, limits = c(0, 1)) +
-  xlim(c(0, 5))
-
-white2_plot <- dd %>%
-  ggplot(aes(x = opc, y = race_per_white_nonhispanic)) +
-  geom_jitter(aes(x = opc), alpha = 0.05, color = "blue") +
-  geom_smooth(aes(x = opc), method = "lm", level = 0.95, color = "blue") +
-  geom_jitter(aes(x = all_org), alpha = 0.05, color = "red") +
-  geom_smooth(aes(x = all_org), method = "lm", level = 0.95, color = "red") +
-  labs(
-    x = glue("Civic opportunity scores
-                per capita"),
-    y = "Non-hispanic white"
-  ) +
-  scale_y_continuous(label = scales::percent, limits = c(0, 1)) +
-  xlim(c(0, 5))
-
-poverty2_plot + edu2_plot + white2_plot + plot_annotation(tag_levels = "A")
-
-ggsave(here("outputs", "civic_inequ_asso2.png"), width = 9, height = 7)
-```
-
-```{r}
 mod_comp_list <- list(
   "Civic opportunity" = standardise(lm_robust(opc ~ per_poverty, data = dd)),
-  "Organizational density" = standardise(lm_robust(all_org ~ per_poverty, data = dd)),
+  "Social capital" = standardise(lm_robust(sk2014 ~ per_poverty, data = dd)),
   "Civic opportunity" = standardise(lm_robust(opc ~ college_educ, data = dd)),
-  "Organizational density" = standardise(lm_robust(all_org ~ college_educ, data = dd)),
+  "Social capital" = standardise(lm_robust(sk2014 ~ college_educ, data = dd)),
   "Civic opportunity" = standardise(lm_robust(opc ~ race_per_white_nonhispanic, data = dd)),
-  "Organizational density" = standardise(lm_robust(all_org ~ race_per_white_nonhispanic, data = dd))
+  "Social capital" = standardise(lm_robust(sk2014 ~ race_per_white_nonhispanic, data = dd))
 )
 ```
 
