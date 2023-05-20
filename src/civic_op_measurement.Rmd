@@ -86,23 +86,28 @@ fips <- read_csv(here("raw_data", "fips_with_population.csv"), col_types = (ZCTA
 # FIPS-level other census details
 fips_census_agg <- read_csv(here("raw_data", "census_fips_aggregate.csv"))
 
-# social capital data (county-level)
-social_capital <- read_csv(here("raw_data", "social_capital.csv"))
-
 # PO BOX status
 po_status <- read_csv(here("raw_data", "irs_po_status.csv"))
 
 # County-level demographic data
-
 county_class <- read_csv(here("raw_data", "County_Classifications.csv"))
 
 names(county_class)[1] <- "FIPS"
 
-# County-level org data 
-county_soc <- read_csv(here("raw_data", "penn_state_social_capital.csv"))
+# County-level org data
+
+##
+ka_sc <- read_csv(here("raw_data", "ka_social_capital.csv"))
+
+## Penn State Index
+penn_sc <- read_csv(here("raw_data", "penn_state_social_capital.csv"))
+
+## Chetty et al index
+chetty_sc <- read_csv(here("raw_data", "chetty_et_al_social_capital.csv")) %>%
+  mutate(county = ifelse(str_length(county) < 5, paste0("0", county), county)) %>%
+  rename(FIPS = county)
 
 # ZCTA-level civic opportunity data for the LA map
-
 zcta_cnts <- read_csv(here("processed_data", "zcta_counts_idx_mean_nonpo.csv"))
 
 # ZCTA-level demographic data
@@ -110,7 +115,7 @@ zcta_cnts <- read_csv(here("processed_data", "zcta_counts_idx_mean_nonpo.csv"))
 ## other demographic data
 zcta_detail <- read_csv(here("raw_data", "census_zcta_detail_data.csv"), col_types = (GEOID <- "c"))
 
-## for the map 
+## for the map
 la_zip_df <- read_csv(here("raw_data", "zipcode_la.csv"))
 
 la_zip_shp <- read_sf(here("raw_data", "Zip_Codes_(LA_County).shp"))
@@ -334,10 +339,10 @@ county_class <- county_class %>%
 
 ```{r}
 # prep for joining
-social_capital$fips_n <-
-  formatC(social_capital$fips_n, width = 5, format = "d", flag = "0")
+ka_sc$fips_n <-
+  formatC(ka_sc$fips_n, width = 5, format = "d", flag = "0")
 
-names(social_capital)[1] <- "FIPS"
+names(ka_sc)[1] <- "FIPS"
 
 #
 # cnts_counts <- select(org_activities_mbf, ZCTA, opp_mean) %>%
@@ -373,7 +378,7 @@ cnts_counts <- org_activities_mbf %>%
 dd <- cnts_counts %>%
   left_join(fips) %>%
   left_join(fips_census_agg) %>%
-  left_join(social_capital) %>%
+  left_join(ka_sc) %>%
   left_join(county_class)
 ```
 
@@ -502,9 +507,21 @@ gtsave(disc_table, here("outputs", "disc_table.docx"))
 
 ```{r}
 # join with the Penn State social capital data
-dd <- dd %>% left_join(county_soc %>% 
-                   mutate(FIPS = as.character(FIPS)) %>%
-                   select(FIPS, sk2014))
+dd <- dd %>% left_join(penn_sc %>%
+  mutate(FIPS = as.character(FIPS)) %>%
+  select(FIPS, sk2014))
+
+# join with the 
+dd <- dd %>% left_join(chetty_sc)
+
+# Kyne and Aldrich 
+cor.test(dd$opc, dd$socialcap)$estimate %>% round(2)
+
+# Rupasingha 
+cor.test(dd$opc, dd$sk2014)$estimate %>% round(2)
+
+# Chetty et al 
+cor.test(dd$opc, dd$civic_organizations_county)$estimate %>% round(2)
 ```
 
 ```{r}
