@@ -642,7 +642,6 @@ modelsummary(mod_comp_list,
   estimate = c("{estimate}"),
   statistic = c("conf.int",
                 "s.e. = {std.error}", 
-                "t = {statistic}",
                 "p = {p.value}"),
   coef_omit = "Intercept",
   coef_map =
