@@ -11,6 +11,7 @@ output: html_document
 if (!require(pacman)) install.packages("pacman")
 
 pacman::p_load(
+  broom, 
   tidyverse,
   glue,
   here,
@@ -577,6 +578,7 @@ ggsave(here("outputs", "pred_plot.png"), height = 6, width = 6)
 
 (0.2 - 0.23) / 0.23
 ```
+
 # Civic opportunity and inequality
 
 ```{r}
@@ -637,8 +639,11 @@ mod_comp_list <- list(
 ```{r}
 modelsummary(mod_comp_list,
   fmt = 3,
-  estimate = c("{estimate} ({std.error}){stars}"),
-  statistic = NULL,
+  estimate = c("{estimate}"),
+  statistic = c("conf.int",
+                "s.e. = {std.error}", 
+                "t = {statistic}",
+                "p = {p.value}"),
   coef_omit = "Intercept",
   coef_map =
     c(
