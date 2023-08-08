@@ -2,4 +2,8 @@
 .Rhistory
 .RData
 .Ruserdata
-raw_data/
+.Rproj.user
+/raw_data
+/processed_data
+*.csv
+*.rds 
