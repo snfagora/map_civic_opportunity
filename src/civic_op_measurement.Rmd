@@ -40,6 +40,7 @@ pacman::p_load(
 
 library("tidylog", warn.conflicts = FALSE)
 
+devtools::install_github("graemeblair/stdidx")
 library(stdidx)
 
 options(es.use_symbols = TRUE) # get nice symbols
@@ -76,8 +77,6 @@ org_activities <- vroom(here("raw_data", "irs_org_activities.csv"))
 irs_activities <- vroom(here("raw_data","irs_nonweb_activities.csv"))
   replace_na(list(volunteer_text = 0, member_text = 0))
 
-# organizations geolocated to FIPS
-=======
 # this is the main data
 mbf <- vroom(here("raw_data", "irs_mbf.csv"))
 
@@ -90,7 +89,6 @@ irs_activities <- irs_activities %>%
   replace_na(list(volunteer_text = 0, member_text = 0)) # without this, the following mutate won't work
 
 # orgs geolocated to FIPS
->>>>>>> a9b51f0ac201a7817fee78b27de7a5157249097c
 irs_to_fips <- vroom(here("raw_data", "irs_to_fips.csv"))
 
 # FIPS (county-level)
@@ -130,7 +128,6 @@ zcta_cnts <- read_csv(here("raw_data", "zcta_counts_idx_mean_nonpo.csv"))
 zcta_detail <- read_csv(here("raw_data", "census_zcta_detail_data.csv"), col_types = (GEOID <- "c"))
 
 # Shape files for the LA map
-=======
 zcta_cnts <- read_csv(here("processed_data", "zcta_counts_idx_mean_nonpo.csv"))
 
 # ZCTA-level demographic data
@@ -139,7 +136,6 @@ zcta_cnts <- read_csv(here("processed_data", "zcta_counts_idx_mean_nonpo.csv"))
 zcta_detail <- read_csv(here("raw_data", "census_zcta_detail_data.csv"), col_types = (GEOID <- "c"))
 
 ## for the map
->>>>>>> a9b51f0ac201a7817fee78b27de7a5157249097c
 la_zip_df <- read_csv(here("raw_data", "zipcode_la.csv"))
 
 la_zip_shp <- read_sf(here("raw_data", "Zip_Codes_(LA_County).shp"))
@@ -186,6 +182,33 @@ org_activities_mbf <- org_activities_mbf %>%
 
 nrow(org_activities_mbf) # 1,363,701
 
+org_activities_mbf <- org_activities_combined %>%
+  left_join(mbf %>% dplyr::select(ein, state, city, zip, irs_group)) %>%
+  mutate(grouping_value = if_else(irs_group != "0000", irs_group, ein)) %>%
+  left_join(po_status) %>%
+  left_join(irs_to_fips)
+
+nrow(org_activities_mbf) # 1,774,798, approximately 1.8M orgs this is the sampling frame
+```
+
+```{r}
+org_activities_mbf <- org_activities_mbf %>%
+  # We call website but actually this variable indicates an org whose activity could be extracted either via its website or IRS report (for volunteer and membership variables)
+  mutate(extractable = ifelse(!is.na(take_action) | !is.na(volunteer) | !is.na(membership) | !is.na(events) | !is.na(resources) | !is.na(advocacy) | !is.na(services) | !is.na(chapters) | !is.na(board) | !is.na(press) | !is.na(donations), 1, 0)) %>%
+  dplyr::select(ein, state, city, zip, take_action, volunteer, membership, events, extractable, grouping_value, is_po, fips)
+```
+
+```{r}
+org_activities_mbf$extractable %>% sum() # 894,888
+
+org_activities_mbf$extractable %>% sum() / nrow(org_activities_mbf)
+
+org_activities_mbf <- org_activities_mbf %>%
+  # filter(extractable == 1) %>% # this includes both websites and IRS
+  filter(is_po != 1) # PO BOX
+
+nrow(org_activities_mbf) # 1,363,701
+
 org_activities_mbf <- org_activities_mbf %>%
   replace_na(list(take_action = 0, volunteer = 0, membership = 0, events = 0))
 
@@ -224,8 +247,22 @@ org_activities_mbf %>%
 ```
 
 # Construct validity test at the org level
->>>>>>> a9b51f0ac201a7817fee78b27de7a5157249097c
+org_activities_mbf$nonweb <- org_activities_mbf$ein %in% nonweb_eins
 
+org_activities_mbf %>%
+  mutate(web = ifelse(nonweb == FALSE | nonweb == TRUE & take_action == 1 | nonweb == TRUE & events == 1, TRUE, FALSE)) %>%
+  mutate(status = as.numeric(nonweb) + as.numeric(web)) %>%
+  mutate(status = ifelse(status == 2, "Both",
+    ifelse(status == 1 & web == TRUE, "Web",
+      ifelse(status == 1 & nonweb == TRUE, "IRS", NA)
+    )
+  )) %>%
+  group_by(status) %>%
+  summarize(n = n()) %>%
+  mutate(freq = n / sum(n))
+```
+
+```{r}
 org_activities_mbf$nonweb <- org_activities_mbf$ein %in% nonweb_eins
 
 org_activities_mbf %>%
@@ -249,6 +286,8 @@ org_activities_mbf %>%
 
 * The objective of this exercise is to test the construct validity. This refers to the extent to which the instrument measures what it claims to measure in theory.
 
+* The objective of this exercise is to test the construct validity. This refers to the extent to which the instrument measures what it claims to measure in theory.
+
 ```{r}
 org_activities_mbf <- org_activities_mbf %>%
   mutate(opp_binary = ifelse(volunteer == 1 | membership == 1 | take_action == 1 | events == 1, 1, 0)) %>%
@@ -269,10 +308,8 @@ write_csv(org_activities_mbf, here("processed_data", "org_measures.csv"))
 
 dim(org_activities_mbf)
 
-=======
 write_csv(org_activities_mbf, here("processed_data", "org_measures.csv"))
 
->>>>>>> a9b51f0ac201a7817fee78b27de7a5157249097c
 civic_orgs <- org_activities_mbf %>%
   filter(opp_mean > 0)
 

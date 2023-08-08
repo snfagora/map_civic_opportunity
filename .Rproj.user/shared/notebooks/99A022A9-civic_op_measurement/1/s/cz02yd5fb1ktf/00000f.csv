@@ -1,0 +1,17 @@
+"0","county_n <- length(unique(dd$FIPS))
+
+sum_county_zip <- dd %>%
+  group_by(FIPS, urban_suburban_rural) %>%
+  summarize(n = n()) %>%
+  mutate(freq = n / county_n)
+"
+"2","`summarise()` has grouped output by 'FIPS'. You can override using the `.groups` argument."
+"0",""
+"0","sum_county_zip %>%"
+"0","  ggplot(aes(x = n, fill = urban_suburban_rural)) +"
+"0","  geom_density(alpha = 0.3) +"
+"0","  labs("
+"0","    y = ""Count"","
+"0","    x = ""The # of zip codes in a county"","
+"0","    fill = ""Census urban-rural classification"""
+"0","  )"

@@ -1,0 +1,8 @@
+"0","dd <- fips %>%
+  left_join(zcta) %>%
+  left_join(census) %>%
+  left_join(county_class) 
+"
+"2","Joining with `by = join_by(FIPS)`"
+"2","Error in is.data.frame(y) : object 'census' not found
+"

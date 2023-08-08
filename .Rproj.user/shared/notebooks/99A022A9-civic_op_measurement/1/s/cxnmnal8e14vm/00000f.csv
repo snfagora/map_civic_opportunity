@@ -1,0 +1,13 @@
+"0","dd <- fips_cnts_invcov %>%
+  left_join(fips) %>%
+  left_join(fips_census_agg) %>%
+  left_join(social_capital)
+"
+"1","[1m[33mError[39m in `left_join()`:[22m
+[38;5;254m[33m![38;5;254m `by` must be supplied when `x` and `y`
+  have no common variables.
+[36mℹ[38;5;254m Use `cross_join()` to perform a cross-join.[39m
+Backtrace:
+[90m 1. [39m... %>% left_join(social_capital)
+[90m 5. [39m[1m[94mdplyr:::left_join.data.frame([39m[22m., fips[1m[94m)[39m[22m
+"

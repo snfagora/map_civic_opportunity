@@ -1,0 +1,26 @@
+"0","# other demographic data "
+"0","census_detail <- read_csv(here(""raw_data"", ""census_zcta_detail_data.csv""), col_types = (GEOID <- ""c""))"
+"0",""
+"0","zcta_fips <- read_csv(here(""raw_data"", ""zcta_cnts.csv""))"
+"2","[1mRows: [22m[34m30985[39m [1mColumns: [22m[34m9[39m"
+"2","[36m──[39m [1mColumn specification[22m [36m───────────────────────[39m
+[1mDelimiter:[22m "",""
+[31mchr[39m (2): ZCTA, FIPS
+[32mdbl[39m (7): all.orgs, eng, eng.alt, vol, mem, ..."
+"2","
+[36mℹ[39m Use `spec()` to retrieve the full column specification for this data.
+[36mℹ[39m Specify the column types or set `show_col_types = FALSE` to quiet this message."
+"0","census_subject <- read_csv(here(""raw_data"", ""census_zcta_subject_data.csv""), col_types = (GEOID <- ""c""))"
+"0",""
+"0","county_class <- read_csv(here(""raw_data"", ""County_Classifications.csv""))"
+"2","[1mRows: [22m[34m3225[39m [1mColumns: [22m[34m45[39m"
+"2","[36m──[39m [1mColumn specification[22m [36m───────────────────────[39m
+[1mDelimiter:[22m "",""
+[31mchr[39m  (3): FIPStxt, State, County
+[32mdbl[39m (42): RuralUrbanContinuumCode2013, Urba..."
+"2","
+[36mℹ[39m Use `spec()` to retrieve the full column specification for this data.
+[36mℹ[39m Specify the column types or set `show_col_types = FALSE` to quiet this message."
+"0","#county_mutual <- read_csv(here(""raw_data"", ""reproduction_data_mutual_aid_hubs_county.csv""))"
+"0",""
+"0","names(county_class)[1] <- ""FIPS"""
