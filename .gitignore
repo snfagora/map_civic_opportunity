@@ -4,3 +4,5 @@
 .Ruserdata
 .Rproj.user
 /raw_data
+*.csv
+*.rds 
