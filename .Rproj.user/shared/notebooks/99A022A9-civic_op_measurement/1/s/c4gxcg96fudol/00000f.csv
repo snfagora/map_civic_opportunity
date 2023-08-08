@@ -1,0 +1,10 @@
+"0","county_cov %>%
+  filter(!is.na(opc_tier)) %>%
+  group_by(opc_tier, urban_suburban_rural) %>%
+  summarize(
+    white = mean(race_per_white_nonhispanic, na.rm = T),
+    poverty = mean(per_poverty, na.rm = T),
+    educ = mean(college_educ, na.rm = T)
+  )
+"
+"2","`summarise()` has grouped output by 'opc_tier'. You can override using the `.groups` argument."

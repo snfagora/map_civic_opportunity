@@ -61,6 +61,7 @@ mbf <- vroom(here("raw_data", "irs_mbf.csv"))
 
 # org activities from the websites and elsewhere 
 org_activites <- vroom(here("raw_data", "irs_org_activities.csv"))
+
 irs_activities <- vroom(here("raw_data","irs_nonweb_activities.csv"))
 
 # fips (county-level)

@@ -1,0 +1,51 @@
+"0","# this is the main data "
+"0","mbf <- vroom(here(""raw_data"", ""irs_mbf.csv""))"
+"2","[1mRows: [22m[34m1774177[39m [1mColumns: [22m[34m28[39m"
+"2","[36m──[39m [1mColumn specification[22m [36m───────────────────────[39m
+[1mDelimiter:[22m "",""
+[31mchr[39m (17): ein, name, ico, street, city, sta...
+[32mdbl[39m (11): affiliation, classification, dedu..."
+"2","
+[36mℹ[39m Use `spec()` to retrieve the full column specification for this data.
+[36mℹ[39m Specify the column types or set `show_col_types = FALSE` to quiet this message."
+"0","# org activities from the websites and elsewhere "
+"0","org_activites <- vroom(here(""raw_data"", ""irs_org_activities.csv""))"
+"2","[1mRows: [22m[34m1774798[39m [1mColumns: [22m[34m12[39m"
+"2","[36m──[39m [1mColumn specification[22m [36m───────────────────────[39m
+[1mDelimiter:[22m "",""
+[31mchr[39m  (1): ein
+[32mdbl[39m (11): resources, take_action, volunteer..."
+"2","
+[36mℹ[39m Use `spec()` to retrieve the full column specification for this data.
+[36mℹ[39m Specify the column types or set `show_col_types = FALSE` to quiet this message."
+"0","# fips (county-level)"
+"0","fips <- read_csv(here(""raw_data"", ""fips_with_population.csv""), col_types = (ZCTA <- ""c""))"
+"0",""
+"0","fips_cnts_invcov <- read_csv(here(""raw_data"", ""fips_cnts_invcov.csv""))"
+"2","[1mRows: [22m[34m3124[39m [1mColumns: [22m[34m3[39m"
+"2","[36m──[39m [1mColumn specification[22m [36m───────────────────────[39m
+[1mDelimiter:[22m "",""
+[31mchr[39m (1): fips
+[32mdbl[39m (2): n, idx_sum"
+"2","
+[36mℹ[39m Use `spec()` to retrieve the full column specification for this data.
+[36mℹ[39m Specify the column types or set `show_col_types = FALSE` to quiet this message."
+"0","fips_census_agg <- read_csv(here(""raw_data"", ""census_fips_aggregate.csv""))"
+"2","[1mRows: [22m[34m3142[39m [1mColumns: [22m[34m5[39m"
+"2","[36m──[39m [1mColumn specification[22m [36m───────────────────────[39m
+[1mDelimiter:[22m "",""
+[31mchr[39m (1): FIPS
+[32mdbl[39m (4): population_total, race_per_white_n..."
+"2","
+[36mℹ[39m Use `spec()` to retrieve the full column specification for this data.
+[36mℹ[39m Specify the column types or set `show_col_types = FALSE` to quiet this message."
+"0","# social capital data "
+"0","social_capital <- read_csv(here(""raw_data"", ""social_capital.csv""))"
+"2","[1mRows: [22m[34m3143[39m [1mColumns: [22m[34m26[39m"
+"2","[36m──[39m [1mColumn specification[22m [36m───────────────────────[39m
+[1mDelimiter:[22m "",""
+[31mchr[39m  (2): geoid, countyname
+[32mdbl[39m (24): fips_n, religion, civic, charitab..."
+"2","
+[36mℹ[39m Use `spec()` to retrieve the full column specification for this data.
+[36mℹ[39m Specify the column types or set `show_col_types = FALSE` to quiet this message."
