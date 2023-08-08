@@ -32,9 +32,9 @@ Last update: August 7, 2023
 
 * Figure 2: Inequality of Civic Opportunity. 
 
-* Figure 3: Relationship of per capita civic opportunity scores (Panel A), Kyne and Aldrich’s composite measure of social capital (Panel B), Chetty et al’s “public good” organizations per capita (Panel C), and Rupasingha et al’s index (Panel D) with COVID-19 mutual aid instances at the county level.
+* Figure 3: Relationship of per capita civic opportunity scores (Panel A), Kyne and Aldrich's composite measure of social capital (Panel B), Chetty et al's "public good"" organizations per capita (Panel C), and Rupasingha et al's index (Panel D) with COVID-19 mutual aid instances at the county level.
 
-* Figure 4 
+* Figure 4: Sources of Civic Opportunity
 
 ### Supplemenatary materials 
 
