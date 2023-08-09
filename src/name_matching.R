@@ -308,6 +308,8 @@ gt_dc_table <- dc_table %>%
 gtsave(gt_dc_table, here("outputs", "dc_lobby_summary.rtf"))
 gtsave(gt_dc_table, here("outputs", "dc_lobby_summary.png"))
 
+# If you want to reproduce Figure 3, it should start here.
+
 w_lobby_n <- combined_df %>%
   filter(!is.na(predicted)) %>%
   group_by(predicted) %>%
@@ -447,15 +449,15 @@ ggsave(here("outputs", "alluvial.png"), height = 8, width = 8)
 
 # for publication
 
-ggsave(here("plots", "figure3.pdf"), 
-       width = 8,
-       height = 8,
-       device = "pdf")
-
 civic_flow_plot + cross_sec_plot + plot_annotation(tag_levels = "A")
 
 ggsave(here("outputs", "cross_flow.png"),
        height = 7, width = 10)
+
+ggsave(here("plots", "figure3.pdf"), 
+       width = 10,
+       height = 7,
+       device = "pdf")
 
 all_period_table <- left_join(
 civic_flow_df %>%

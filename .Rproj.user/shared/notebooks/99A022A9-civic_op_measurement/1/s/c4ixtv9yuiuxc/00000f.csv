@@ -1,7 +1,0 @@
-"0","source(here(""functions"", ""utils.r""))
-"
-"2","Error in source(here(""functions"", ""utils.r"")) : 
-  /home/jae/map_civic_opportunity/functions/utils.r:1:1: unexpected input
-1: 
-    ^
-"
