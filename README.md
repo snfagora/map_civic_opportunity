@@ -26,7 +26,7 @@ Last update: August 7, 2023
 
 - [Rupasingha, et al (2006, with updates) (Penn State Index)](https://aese.psu.edu/nercrd/community/social-capital-resources)
 
-- [Washington Representatives Study (Organized Interests in Washington Politics) - 1981, 1991, 2001, 2006, 2011 (ICPSR 35309)](https://www.icpsr.umich.edu/web/ICPSR/studies/35309/publications) by Schlozman et al (2014)
+- [Schlozman et al (2014) (Washington Representative Study)](https://www.icpsr.umich.edu/web/ICPSR/studies/35309/publications) by Schlozman et al (2014)
 
 ### Processed data 
 
