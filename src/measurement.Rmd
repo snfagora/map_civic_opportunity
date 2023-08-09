@@ -289,6 +289,12 @@ con_plot
 ggsave(here("outputs", "con_plot.png"),
   height = 5, width = 5
 )
+
+# for publication 
+ggsave(here("plots", "figure_s1.pdf"), 
+       width = 5,
+       height = 5,
+       device = "pdf")
 ```
 
 # Link org and census data at the county level
@@ -445,6 +451,12 @@ map_trade_off %>%
   geom_hline(yintercept = 0.5, linetype = 2)
 
 ggsave(here("outputs", "map_trade_off.png"), height = 6, width = 6)
+
+# for publication 
+ggsave(here("plots", "figure_s2.pdf"), 
+       width = 6,
+       height = 6,
+       device = "pdf")
 ```
 
 # Discriminant validity test
@@ -576,62 +588,34 @@ ggsave(here("outputs", "pred_plot.png"), height = 6, width = 6)
 # Civic opportunity and inequality
 
 ```{r}
-poverty_plot <- dd %>%
-  ggplot(aes(x = opc, y = per_poverty)) +
-  geom_jitter(alpha = 0.05) +
-  stat_smooth(
-    aes(color = "OLS fit", fill = "95% CI"),
-    method = "lm",  formula = y~x, linetype = 1,
-    level = 0.95, alpha = 0.5
-  ) +
-  labs(
-    x = glue("Civic opportunity scores"),
-    y = "Federal poverty level"
-  ) +
-  scale_y_continuous(label = scales::percent, limits = c(0, 1)) +
-  xlim(c(0, 5)) +
-  coord_flip()
+pred_plot <- function(var, x_label) {
+  
+  ci95 <- predict(lm(opc ~ var, data = dd), dd, interval = "confidence", level = 0.95) %>%
+    data.frame()
+  
+  dd %>%
+    bind_cols(ci95) %>%
+    ggplot(aes(y = opc, x = var)) +
+    geom_jitter(alpha = 0.05) +
+    geom_line(aes(y = fit, col = "OLS fit")) +
+    geom_ribbon(aes(ymax = upr, ymin = lwr, col = "95% CIs"), alpha = 0.07) +
+    labs(
+    y = glue("Civic opportunity scores"),
+    x = x_label,
+    col = "Indicators"
+    ) +
+    scale_x_continuous(label = scales::percent, limits = c(0, 1)) +
+    ylim(c(0, 5)) 
+}
 
-college_edu_plot <- dd %>%
-  ggplot(aes(x = opc, y = college_educ)) +
-  geom_jitter(alpha = 0.05) +
-  stat_smooth(
-    aes(color = "OLS fit", fill = "95% CI"),
-    method = "lm",  formula = y~x, linetype = 1,
-    level = 0.95, alpha = 0.5
-  ) +
-  labs(
-    x = glue("Civic opportunity scores"),
-    y = "College educated"
-  ) +
-  scale_y_continuous(label = scales::percent, limits = c(0, 1)) +
-  xlim(c(0, 5)) +
-  coord_flip()
-
-white_plot <- dd %>%
-  ggplot(aes(x = opc, y = race_per_white_nonhispanic)) +
-  geom_jitter(alpha = 0.05) +
-  stat_smooth(
-    aes(color = "OLS fit", fill = "95% CI"),
-    method = "lm",  formula = y~x, linetype = 1,
-    level = 0.95, alpha = 0.5
-  ) +
-  labs(
-    x = glue("Civic opportunity scores"),
-    y = "Non-hispanic white"
-  ) +
-  scale_y_continuous(label = scales::percent, limits = c(0, 1)) +
-  xlim(c(0, 5)) +
-  coord_flip()
-
-combined_plots <- wrap_plots(poverty_plot, college_edu_plot, white_plot, ncol = 3) + 
+combined_plots <- wrap_plots(pred_plot(dd$per_poverty, "Federal poverty level"),
+  pred_plot(dd$college_educ, "College educated"),
+  pred_plot(dd$race_per_white_nonhispanic, "Non-Hispanic white"),
+  ncol = 3) +
   plot_annotation(tag_levels = "A") +
   plot_layout(guides = "collect")
 
 combined_plots
-```
-
-```{r}
 
 # Save the plots as images
 ggsave(here("outputs", "civic_inequ_asso.png"), combined_plots, width = 9, height = 7)
