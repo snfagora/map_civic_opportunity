@@ -18,11 +18,26 @@ Last update: August 7, 2023
 
 * We classified the organizational types based on the above data using our own R package, called ["autotextclassifier"](https://snfagora.github.io/autotextclassifier/) (ver 0.05), also developed by de Vries and Kim.
 
+### Other data sources 
+
+- [Kyne and Aldrich (2020)](https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/IUNNZM)
+
+- [Chetty, et al (2023)](https://www.socialcapital.org/?dimension=EconomicConnectednessIndividual&geoLevel=county&selectedId=&dim1=EconomicConnectednessIndividual&dim2=CohesivenessClustering&dim3=CivicEngagementVolunteeringRates&bigModalSection=&bigModalChart=scatterplot&showOutliers=false&colorBy=)
+
+- [Rupasingha, et al (2006, with updates) (Penn State Index)](https://aese.psu.edu/nercrd/community/social-capital-resources)
+
+- [Washington Representatives Study (Organized Interests in Washington Politics) - 1981, 1991, 2001, 2006, 2011 (ICPSR 35309)](https://www.icpsr.umich.edu/web/ICPSR/studies/35309/publications) by Schlozman et al (2014)
+
 ### Processed data 
 
 * org_measures.csv (organization-level, 1,363,701 * 15)
 
-## Code 
+## Code
+
+- Data Wrangling and Descriptive Analysis: `Figures 1-3`, `Figures S1-2`
+- Matching the MMA and Washington data: `Figure 4`
+- Regression tables
+- Classification evaluation tables
 
 ## Tables and Figures 
 

@@ -454,6 +454,7 @@ civic_flow_plot + cross_sec_plot + plot_annotation(tag_levels = "A")
 ggsave(here("outputs", "cross_flow.png"),
        height = 7, width = 10)
 
+# Figure 4 
 ggsave(here("plots", "figure4.pdf"), 
        width = 10,
        height = 7,
