@@ -187,9 +187,6 @@ fuzzy_match <- function(state) {
   return(matched$matches)
 }
 
-plan(multiprocess, workers = 7)
-options(future.globals.maxSize = 1000000000)
-
 final_df <- map_dfr(states, fuzzy_match)
 
 # Save the result
@@ -447,6 +444,13 @@ civic_flow_plot <- civic_flow_sum %>%
 civic_flow_plot
 
 ggsave(here("outputs", "alluvial.png"), height = 8, width = 8)
+
+# for publication
+
+ggsave(here("plots", "figure3.pdf"), 
+       width = 8,
+       height = 8,
+       device = "pdf")
 
 civic_flow_plot + cross_sec_plot + plot_annotation(tag_levels = "A")
 
