@@ -32,7 +32,7 @@ Last update: August 7, 2023
 
 * [Figure 2: Inequality of Civic Opportunity](https://github.com/snfagora/map_civic_opportunity/blob/main/plots/figure2.pdf)
 
-* [Figure 3: Relationship of per capita civic opportunity scores (Panel A), Kyne and Aldrich's composite measure of social capital (Panel B), Chetty et al's "public good"" organizations per capita (Panel C), and Rupasingha et al's index (Panel D) with COVID-19 mutual aid instances at the county level](https://github.com/snfagora/map_civic_opportunity/blob/main/plots/figure3.pdf)
+* [Figure 3: Relationship of per capita civic opportunity scores (Panel A), Kyne and Aldrich's composite measure of social capital (Panel B), Chetty et al's "public good"" organizations per capita (Panel C), and Rupasingha et al's index (Panel D) with COVID-19 mutual aid instances at the county level](https://github.com/snfagora/map_civic_opportunity/blob/main/plots/figure3.pdf) TK
 
 * [Figure 4: Sources of Civic Opportunity](https://github.com/snfagora/map_civic_opportunity/blob/main/plots/figure4.pdf)
 
