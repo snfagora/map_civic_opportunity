@@ -2,8 +2,6 @@
 
 Authors: Milan de Vries, Jae Yeon Kim, and Hahrie Han (2023)
 
-Last update: August 7, 2023
-
 ## Session information 
 
 * R version 4.2.2 (2022-10-31)
