@@ -28,13 +28,13 @@ Last update: August 7, 2023
 
 ### Manuscript
 
-* Figure 1: The Geography of Civic Opportunity in the United States
+* [Figure 1: The Geography of Civic Opportunity in the United States](https://github.com/snfagora/map_civic_opportunity/blob/main/plots/figure1.pdf)
 
-* Figure 2: Inequality of Civic Opportunity. 
+* [Figure 2: Inequality of Civic Opportunity](https://github.com/snfagora/map_civic_opportunity/blob/main/plots/figure2.pdf)
 
-* Figure 3: Relationship of per capita civic opportunity scores (Panel A), Kyne and Aldrich's composite measure of social capital (Panel B), Chetty et al's "public good"" organizations per capita (Panel C), and Rupasingha et al's index (Panel D) with COVID-19 mutual aid instances at the county level.
+* [Figure 3: Relationship of per capita civic opportunity scores (Panel A), Kyne and Aldrich's composite measure of social capital (Panel B), Chetty et al's "public good"" organizations per capita (Panel C), and Rupasingha et al's index (Panel D) with COVID-19 mutual aid instances at the county level](https://github.com/snfagora/map_civic_opportunity/blob/main/plots/figure3.pdf)
 
-* Figure 4: Sources of Civic Opportunity
+* [Figure 4: Sources of Civic Opportunity](https://github.com/snfagora/map_civic_opportunity/blob/main/plots/figure4.pdf)
 
 ### Supplemenatary materials 
 
@@ -60,6 +60,6 @@ Last update: August 7, 2023
 
 * Table S16 Distribution of civic opportunity organizations across organization types. Pre-1960 organization are those that received IRS non-profit designations prior to 1960. 
 
-* Fig S1 Correlation matrix between index variables and their components 
+* [Fig S1 Correlation matrix between index variables and their components](https://github.com/snfagora/map_civic_opportunity/blob/main/plots/figure_s1.pdf)
 
-* Fig S2 The percentage of high and low civic score counties across states   
+* [Fig S2 The percentage of high and low civic score counties across states](https://github.com/snfagora/map_civic_opportunity/blob/main/plots/figure_s2.pdf)
