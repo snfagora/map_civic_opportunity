@@ -30,11 +30,11 @@ ggplot2::theme_set(custom_theme())
 # summary tables 
 unit_cor_df <- read_csv(here("data_outputs", "unit_cor_df.csv"))
 map_trade_off <- read_csv(here("data_outputs", "map_trade_off.csv"))
-dd <- read_csv(here("data_outputs", "mma_sc_demo"))
+dd <- read_csv(here("data_outputs", "mma_sc_demo.csv"))
 
 # for the map 
 
-combined_unique <- read_rds(here("processed_data", "combined_unique.rds"))
+combined_unique <- read_rds(here("data_outputs", "county_opc.rds"))
 la_zip_shp <- st_read(here("data_outputs", "la_zip_shp.shp"))
 la_zcta_opc <- read_csv(here("data_outputs", "la_zcta_opc.csv"))
 

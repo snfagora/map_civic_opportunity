@@ -28,7 +28,17 @@ Authors: Milan de Vries, Jae Yeon Kim, and Hahrie Han (2023)
 
 ### Replication (processed) data 
 
-* org_measures.csv (1,363,701 * 15)
+* mma_sc_demo.csv
+
+* unit_cor_df.csv
+
+* map_trade_off.csv
+
+* county_opc.rds
+
+* la_zip_shp.shp
+
+* la_zcta_opc.csv
 
 * matched_mma_wa.csv (5,853 * 5)
   - `ein` (numeric): Employment Identification Number (IRS assigned organization ID)

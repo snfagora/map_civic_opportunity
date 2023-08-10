@@ -400,7 +400,7 @@ mma_sc_demo <- dd %>%
   select(FIPS, opc, socialcap, sk2014, civic_organizations_county, race_per_white_nonhispanic, per_poverty, college_educ)
 
 # For publication
-write_csv(mma_sc_demo, here("data_outputs", "mma_sc_demo"))
+write_csv(mma_sc_demo, here("data_outputs", "mma_sc_demo.csv"))
 ```
 
 # Predictive validity 
@@ -565,6 +565,9 @@ combined_map <- read_rds(here("processed_data", "combined_map.rds"))
 combined_unique <- combined_map[!duplicated(combined_map$id), ] # 3,108 counties
 
 write_rds(combined_unique, here("processed_data", "combined_unique.rds"))
+
+# for publication
+write_rds(combined_unique, here("data_outputs", "county_opc.rds"))
 
 combined_unique <- read_rds(here("processed_data", "combined_unique.rds"))
 
