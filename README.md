@@ -26,9 +26,36 @@ Authors: Milan de Vries, Jae Yeon Kim, and Hahrie Han (2023)
 
 - [Schlozman et al (2014) (Washington Representative Study)](https://www.icpsr.umich.edu/web/ICPSR/studies/35309/publications)
 
-### Processed data 
+### Replication (processed) data 
 
-* org_measures.csv (organization-level, 1,363,701 * 15)
+* org_measures.csv (1,363,701 * 15)
+
+* matched_mma_wa.csv (5,853 * 5)
+  - `ein` (numeric): Employment Identification Number (IRS assigned organization ID)
+  - `state` (character): The state in which the organization is located
+  - `lobby` (dummy): 1 = "lobbying organization," 0 = "non-lobbying organization"  
+  - `predicted` (character): 15 predicted categories or `NA`
+  - `ruling` (numeric) = IRS ruling year-month (e.g., `200303`)
+  
+* matched_mma_wa_summary.csv (30 * 6)
+  - `class` (character): 15 predicted categories 
+  - `n` (numeric): The number of classified organizations in each category
+  - `freq` (numeric): The frequency of classified organizations in each category 
+  - `typr` (character): "DC Organizations" or "Civic Organizations"
+  
+* org_flow_over_time.csv (30 * 6)
+  - `period` (character): "Pre-1960" or "Post-2010"
+  - `class` (character): 15 predicted categories 
+  - `n` (numeric): The number of classified organizations in each category
+  - `freq` (numeric): The frequency of classified organizations in each category 
+  - `flow_change` (numeric): The frequency difference between the post-2010 and the pre-1960 cohorts
+  - `dir` (character): "Increase" or "Decrease"
+  
+* org_volume_over_time.csv (15 * 4)
+  - `class` (character): 15 predicted categories 
+  - `all` (numeric): The total number of classified organizations in each category
+  - `Post-2010` (numeric): The number of classified organizations in each category from the post-2010 cohort
+  - `Pre-1960` (numeric): The number of classified organizations in each category from the pre-1960 cohort
 
 ## Code
 
