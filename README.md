@@ -43,7 +43,7 @@ All replication data are available at: tk
 * la_zcta_opc.csv
 
 * matched_mma_wa.csv (5,853 * 5)
-  - `ein` (numeric): Employment Identification Number (IRS assigned organization ID)
+  - `ein` (numeric): Employment Identification Number (IRS-assigned-organization IDs)
   - `state` (character): The state in which the organization is located
   - `lobby` (dummy): 1 = "lobbying organization," 0 = "non-lobbying organization"  
   - `predicted` (character): 15 predicted categories or `NA`
