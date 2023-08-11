@@ -87,7 +87,7 @@ gt_dc_table <- dc_table %>%
 gtsave(gt_dc_table, here("outputs", "dc_lobby_summary.rtf"))
 
 # for publication
-gtsave(gt_dc_table, here("tables", "table_s15.rtf"))
+gtsave(gt_dc_table, here("tables", "table_s15.docx"))
 
 w_lobby_n <- combined_df %>%
   filter(!is.na(predicted)) %>%
@@ -175,4 +175,4 @@ all_period_gt <- all_period_table %>%
 gtsave(all_period_gt, here("outputs", "all_period_gt.rtf"))
 
 # for publication
-gtsave(all_period_gt, here("tables", "table_s16.rtf"))
+gtsave(all_period_gt, here("tables", "table_s16.docx"))
