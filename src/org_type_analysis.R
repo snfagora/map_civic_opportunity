@@ -27,11 +27,11 @@ combined_df <- vroom::vroom(here("data_outputs", "matched_mma_wa.csv"))
 
 joined_lobby_df <- read_csv(here("data_outputs", "matched_mma_wa_summary.csv"))
 
-class_vec <- c("arts ',' civic ',' community ',' econ ',' education ',' foundation ',' health ',' hobby ',' housing ',' professional ',' religious ',' research ',' socialfraternal ',' unions ',' youth")
-
 civic_flow_sum <- read_csv(here("data_outputs", "org_flow_over_time.csv"))
 
 all_period_table <- read_csv(here("data_outputs", "org_volume_over_time.csv"))
+
+class_vec <- c("arts", "civic", "community", "econ", "education", "foundation", "health", "hobby", "housing", "professional", "religious", "research", "socialfraternal", "unions", "youth")
 
 # summary tables
 
@@ -69,7 +69,7 @@ dc_table <- dc_table %>%
 gt_dc_table <- dc_table %>%
   arrange(desc(lobby_pct)) %>%
   select(-predicted) %>%
-  select(class, lobby_n, lobby_pct) %>%
+  select(predicted, lobby_n, lobby_pct) %>%
   gt() %>%
   fmt_percent(
     columns = c("lobby_pct"),
@@ -81,10 +81,14 @@ gt_dc_table <- dc_table %>%
     lobby_pct = "The percentage of lobbying organizations"
   )
 
-gtsave(gt_dc_table, here("outputs", "dc_lobby_summary.rtf"))
-gtsave(gt_dc_table, here("outputs", "dc_lobby_summary.png"))
+################################################################################
+# Table S15
+################################################################################
 
-# If you want to reproduce Figure 3, it should start here.
+gtsave(gt_dc_table, here("outputs", "dc_lobby_summary.rtf"))
+
+# for publication
+gtsave(gt_dc_table, here("tables", "table_s15.rtf"))
 
 w_lobby_n <- combined_df %>%
   filter(!is.na(predicted)) %>%
@@ -145,7 +149,10 @@ civic_flow_plot + cross_sec_plot + plot_annotation(tag_levels = "A")
 ggsave(here("outputs", "cross_flow.png"),
        height = 7, width = 10)
 
-# Figure 4 
+################################################################################
+# FIGURE 4
+################################################################################
+
 ggsave(here("plots", "figure4.pdf"), 
        width = 10,
        height = 7,
@@ -162,4 +169,11 @@ all_period_gt <- all_period_table %>%
     `Pre-1960` = "Post-2010 civic opportunity organizations"
   )
 
+################################################################################
+# Table S16
+################################################################################
+
 gtsave(all_period_gt, here("outputs", "all_period_gt.rtf"))
+
+# for publication
+gtsave(all_period_gt, here("outputs", "table_s16.rtf"))
