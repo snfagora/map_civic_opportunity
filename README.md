@@ -78,7 +78,7 @@ All replication data are available at: tk
 
 ## Code
 
-- [Wrangling and joining the MMA and other outcome and covariate data](https://github.com/snfagora/map_civic_opportunity/blob/main/src/data_wrangling.Rmd) 
+- [Wrangling and joining the MMA and other outcomes and covariates](https://github.com/snfagora/map_civic_opportunity/blob/main/src/data_wrangling.Rmd) 
 - [Analyzing the MMA and other outcomes and covariates](https://github.com/snfagora/map_civic_opportunity/blob/main/src/measurement_test.R) (Figures 1-3) 
 - [Matching the MMA and Washington data](https://github.com/snfagora/map_civic_opportunity/blob/main/src/name_matching.R)
 - [Analyzing the MMA and Washington data](https://github.com/snfagora/map_civic_opportunity/blob/main/src/org_type_analysis.R) (Figure 4)
