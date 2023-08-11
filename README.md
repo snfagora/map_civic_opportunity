@@ -104,9 +104,9 @@ All replication data are available at: tk
 
 * Table S1 (manually created codebook)
 
-* [Table S2 Performance results for individual binary classifiers. The final models used were ensemble models that combined Lasso and XGBoost models] 
+* [Table S2 Performance results for individual binary classifiers. The final models used were ensemble models that combined Lasso and XGBoost models](https://github.com/snfagora/map_civic_opportunity/blob/main/tables/table_s2.docx)
 
-* [Table S3 Performance results for classifiers are pooled by models and metrics]
+* [Table S3 Performance results for classifiers are pooled by models and metrics](https://github.com/snfagora/map_civic_opportunity/blob/main/tables/table_s3.docx)
 
 * Table S4. Number of organizations in each category labeled by their availability of website data and IRS tax return data.  
 
