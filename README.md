@@ -78,12 +78,12 @@ All replication data are available at: tk
 
 ## Code
 
-- Wrangling and joining the MMA and other outcome and covariate data 
-- Analyzing the MMA and other outcomes and covariates (Figures 1-3) 
-- Matching the MMA and Washington data
-- Analyzing the MMA and Washington data (Figure 4)
-- Regression tables
-- Classification evaluation tables
+- [Wrangling and joining the MMA and other outcome and covariate data](https://github.com/snfagora/map_civic_opportunity/blob/main/src/data_wrangling.Rmd) 
+- [Analyzing the MMA and other outcomes and covariates](https://github.com/snfagora/map_civic_opportunity/blob/main/src/measurement_test.R) (Figures 1-3) 
+- [Matching the MMA and Washington data](https://github.com/snfagora/map_civic_opportunity/blob/main/src/name_matching.R)
+- [Analyzing the MMA and Washington data](https://github.com/snfagora/map_civic_opportunity/blob/main/src/org_type_analysis.R) (Figure 4)
+- [Regression tables](https://github.com/snfagora/map_civic_opportunity/blob/main/src/regression_tables.R)
+- [Classification evaluation tables](https://github.com/snfagora/map_civic_opportunity/blob/main/src/ml_performance_eval.R)
 
 ## Tables and Figures 
 
