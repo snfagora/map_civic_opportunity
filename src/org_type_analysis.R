@@ -68,8 +68,7 @@ dc_table <- dc_table %>%
 
 gt_dc_table <- dc_table %>%
   arrange(desc(lobby_pct)) %>%
-  select(-predicted) %>%
-  select(predicted, lobby_n, lobby_pct) %>%
+  select(class, lobby_n, lobby_pct) %>%
   gt() %>%
   fmt_percent(
     columns = c("lobby_pct"),
@@ -176,4 +175,4 @@ all_period_gt <- all_period_table %>%
 gtsave(all_period_gt, here("outputs", "all_period_gt.rtf"))
 
 # for publication
-gtsave(all_period_gt, here("outputs", "table_s16.rtf"))
+gtsave(all_period_gt, here("tables", "table_s16.rtf"))
