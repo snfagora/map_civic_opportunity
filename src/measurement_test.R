@@ -5,7 +5,14 @@ if (!require(pacman)) install.packages("pacman")
 
 pacman::p_load(
   tidyverse,
-  here)
+  here,
+  modelsummary,
+  sf,
+  tigris,
+  tmap,
+  RColorBrewer,
+  usdata
+  )
 
 custom_theme <- function(size = 13) {
   theme_bw(base_size = size) +
@@ -44,6 +51,27 @@ sd(unit_cor_df[, 2] %>% unlist()) # sd binary index
 sd(unit_cor_df[, 3] %>% unlist()) # sd mean index
 sd(unit_cor_df[, 4] %>% unlist()) # sd inverse covariance matrix index
 sd(unit_cor_df[, 5] %>% unlist()) # sd principal component first factor index
+
+# correlation test 
+
+options(scipen = 999) 
+
+### Kyne and Aldrich 
+cor.test(dd$opc, dd$socialcap) %>%
+  tidy()
+
+### Rupasingha 
+cor.test(dd$opc, dd$sk2014) %>%
+  tidy()
+
+### Chetty et al 
+cor.test(dd$opc, dd$civic_organizations_county) %>%
+  tidy()
+
+cor.test(dd$opc, dd$civic_organizations_county)
+p.adjust(cor.test(dd$opc, dd$civic_organizations_county)$p.value, n = 3127, method = "bonferroni")
+
+paste("Degrees of freedom:", nrow(dd) - 2)
 
 ################################################################################
 # FIGURE s1 

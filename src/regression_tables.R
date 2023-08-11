@@ -44,5 +44,3 @@ modelsummary(mad_models,
              coef_omit = "Intercept",
              coef_map = mad_cm,
              output = here("outputs", "reg_base.docx"))
-  
-# Vaccine model 

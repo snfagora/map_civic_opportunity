@@ -406,20 +406,6 @@ write_csv(mma_sc_demo, here("data_outputs", "mma_sc_demo.csv"))
 # Predictive validity 
 
 ```{r}
-# Kyne and Aldrich 
-cor.test(dd$opc, dd$socialcap)$estimate %>% round(2)
-
-# Rupasingha 
-cor.test(dd$opc, dd$sk2014)$estimate %>% round(2)
-
-# Chetty et al 
-cor.test(dd$opc, dd$civic_organizations_county)$estimate %>% round(2)
-
-dd %>%
-  select(FIPS, opc, socialcap, sk2014, civic_organizations_county)
-```
-
-```{r}
 corr_mod <- dd %>%
   # group_by(State) %>%
   do(tidy(standardize(lm_robust(formula = opc ~ race_per_white_nonhispanic + per_poverty + college_educ, data = .)))) # Here standardize refers to refitting the model with standardized data (https://cran.r-project.org/web/packages/effectsize/vignettes/effectsize.html) z-scoring
