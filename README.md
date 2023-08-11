@@ -28,6 +28,8 @@ Authors: Milan de Vries, Jae Yeon Kim, and Hahrie Han (2023)
 
 ### Replication (processed) data 
 
+All replication data are available at: tk 
+
 * mma_sc_demo.csv
 
 * unit_cor_df.csv
@@ -67,14 +69,26 @@ Authors: Milan de Vries, Jae Yeon Kim, and Hahrie Han (2023)
   - `Post-2010` (numeric): The number of classified organizations in each category from the post-2010 cohort
   - `Pre-1960` (numeric): The number of classified organizations in each category from the pre-1960 cohort
 
+* pred_eval.csv (135 * 5)
+  - `.metric`: "Accuracy," "Balanced accuracy," or "F-Score"
+  - `.estimator`: "Binary"
+  - `.estimate`: Predicted probability
+  - `model` (classifier): "Lasso," "Random forest", or "XGBoost"
+  - `class` (character): 15 predicted categories 
+
 ## Code
 
-- Data Wrangling and Descriptive Analysis: `Figures 1-3`, `Figures S1-2`
-- Matching the MMA and Washington data: `Figure 4`
+- Wrangling and joining the MMA and other outcome and covariate data 
+- Analyzing the MMA and other outcomes and covariates (Figures 1-3) 
+- Matching the MMA and Washington data
+- Analyzing the MMA and Washington data (Figure 4)
 - Regression tables
 - Classification evaluation tables
 
 ## Tables and Figures 
+
+* All tables are in `/tables` 
+* All figures are in `/figures` 
 
 ### Manuscript
 
@@ -88,7 +102,11 @@ Authors: Milan de Vries, Jae Yeon Kim, and Hahrie Han (2023)
 
 ### Supplemenatary materials 
 
-* Table S2 Performance results for individual binary classifiers. The final models used were ensemble models that combined Lasso and XGBoost models. 
+* Table S1 (manually created codebook)
+
+* [Table S2 Performance results for individual binary classifiers. The final models used were ensemble models that combined Lasso and XGBoost models] 
+
+* [Table S3 Performance results for classifiers are pooled by models and metrics]
 
 * Table S4. Number of organizations in each category labeled by their availability of website data and IRS tax return data.  
 
@@ -106,9 +124,9 @@ Authors: Milan de Vries, Jae Yeon Kim, and Hahrie Han (2023)
 
 * Table S14 Ordinary least square regression for vaccine uptake in zip codes on civic opportunities per capita and other covariates. Vaccine uptake is expressed as the cumulative number of doses per thousand residents. (MN, n=792 ; TX, n=1582 ; NY, n=1516) 
 
-* Table S15 Organizations from the Washington Representative Study matched to the Civic Opportunity dataset. 
+* [Table S15 Organizations from the Washington Representative Study matched to the Civic Opportunity dataset](https://github.com/snfagora/map_civic_opportunity/blob/main/tables/table_s15.rtf)
 
-* Table S16 Distribution of civic opportunity organizations across organization types. Pre-1960 organization are those that received IRS non-profit designations prior to 1960. 
+* [Table S16 Distribution of civic opportunity organizations across organization types. Pre-1960 organization are those that received IRS non-profit designations prior to 1960](https://github.com/snfagora/map_civic_opportunity/blob/main/tables/table_s16.rtf)
 
 * [Fig S1 Correlation matrix between index variables and their components](https://github.com/snfagora/map_civic_opportunity/blob/main/plots/figure_s1.pdf)
 

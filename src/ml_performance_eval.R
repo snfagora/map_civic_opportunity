@@ -36,8 +36,7 @@ ggsave(here("outputs", "summary.png"), width = 10, height = 8)
 # Table S2
 ################################################################################
 
-class_vec <- c("arts", "civic", "community", "econ", "education", "foundation", "health", "hobby", "housing", "professional", "religious", "research", "socialfraternal", "unions", "youth")
-
+class_vec <- eval_summary$class %>% unique()
 
 eval_table <- eval_summary %>%
   select(model, class, .metric, .estimate) %>%
@@ -64,7 +63,9 @@ eval_table <- eval_summary %>%
     "Class" = class,
     "Metric" = .metric,
     "Estimate" = .estimate
-  ) %>%
+  ) 
+
+eval_table <- eval_table %>%
   arrange(Class) %>%
   gt() 
 
