@@ -1,4 +1,4 @@
-$)C# The Unequal Landscape of Civic Opportunity in America
+# The Unequal Landscape of Civic Opportunity in America
 
 Authors: Milan de Vries, Jae Yeon Kim, and Hahrie Han (2023)
 
@@ -121,15 +121,14 @@ All replication data are available at: tk
   - `civic_opportunity_per_capita` (numeric): Civic Opportunity Index defined in the paper
   - `d.share` (numeric): Democratic vote share, 2020 election
 
-
 ## Code
 
 - [Wrangling and joining the MMA and other outcomes and covariates](https://github.com/snfagora/map_civic_opportunity/blob/main/src/data_wrangling.Rmd) 
-- [Analyzing the MMA and other outcomes and covariates](https://github.com/snfagora/map_civic_opportunity/blob/main/src/measurement_test.R) (Figures 1-3) 
+- [Analyzing the MMA and other outcomes and covariates](https://github.com/snfagora/map_civic_opportunity/blob/main/src/measurement_test.R) (Figures 1-3, Figures S1-2) 
 - [Matching the MMA and Washington data](https://github.com/snfagora/map_civic_opportunity/blob/main/src/name_matching.R)
-- [Analyzing the MMA and Washington data](https://github.com/snfagora/map_civic_opportunity/blob/main/src/org_type_analysis.R) (Figure 4)
+- [Analyzing the MMA and Washington data](https://github.com/snfagora/map_civic_opportunity/blob/main/src/org_type_analysis.R) (Figure 4, Tables S15-16)
 - [Regression tables](https://github.com/snfagora/map_civic_opportunity/blob/main/src/regression_tables.R)
-- [Classification evaluation tables](https://github.com/snfagora/map_civic_opportunity/blob/main/src/ml_performance_eval.R)
+- [Classification evaluation tables](https://github.com/snfagora/map_civic_opportunity/blob/main/src/ml_performance_eval.R) (Tables S2-3)
 
 ## Tables and Figures 
 
