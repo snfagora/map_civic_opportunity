@@ -1,4 +1,4 @@
-# The Unequal Landscape of Civic Opportunity in America
+$)C# The Unequal Landscape of Civic Opportunity in America
 
 Authors: Milan de Vries, Jae Yeon Kim, and Hahrie Han (2023)
 
@@ -21,6 +21,8 @@ Authors: Milan de Vries, Jae Yeon Kim, and Hahrie Han (2023)
 - [Kyne and Aldrich (2020)](https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/IUNNZM)
 
 - [Chetty, et al (2023)](https://www.socialcapital.org/?dimension=EconomicConnectednessIndividual&geoLevel=county&selectedId=&dim1=EconomicConnectednessIndividual&dim2=CohesivenessClustering&dim3=CivicEngagementVolunteeringRates&bigModalSection=&bigModalChart=scatterplot&showOutliers=false&colorBy=)
+
+- [Pierri, et al. (2022)](https://github.com/osome-iu/CoVaxxy-Misinfo)
 
 - [Rupasingha, et al (2006, with updates) (Penn State Index)](https://aese.psu.edu/nercrd/community/social-capital-resources)
 
@@ -75,6 +77,50 @@ All replication data are available at: tk
   - `.estimate`: Predicted probability
   - `model` (classifier): "Lasso," "Random forest", or "XGBoost"
   - `class` (character): 15 predicted categories 
+  
+* regression_mutual_aid.csv (3112 * 17)
+  - `FIPS` (character): County FIPS code
+  - `has_hubs` (numeric): Presence of COVID-19 mutual aid hubs in the county
+  - `hubs` (numeric): Number of COVID-19 mutual aid hubs in the county
+  - `civic_opportunity_per_capita` (numeric): Civic Opportunity Index defined in the paper
+  - `socialcap` (numeric): From Kyne & Aldrich
+  - `civic_organizations_county` (numeric): From Chetty, et al.
+  - `sk2014` (numeric): From Rupasingha, et al. 
+
+* regression_vaccine_hesitancy.csv (3107 * 16)
+  - `FIPS` (character): County FIPS code
+  - `vac.acceptance` (numeric): County vaccine acceptance rate. See Pierri, et al.
+  - `civic_opportunity_per_capita` (numeric): Civic Opportunity Index defined in the paper
+  - `sk2014` (numeric): From Rupasingha, et al. 
+  - `misinfo` (numeric): COVID-19 misinformation. See Pierri, et al.
+  - `covidmortality` (numeric): County-level COVID-19 mortality rate
+
+* regression_vaccine_uptake.csv (3107 * 16)
+  - `FIPS` (character): County FIPS code
+  - `vpt.all` (numeric): County vaccine uptake rate as defined by the CDC
+  - `civic_opportunity_per_capita` (numeric): Civic Opportunity Index defined in the paper
+  - `sk2014` (numeric): From Rupasingha, et al. 
+  - `Recip_State` (numeric): U.S. State
+  - `covidmortality` (numeric): County-level COVID-19 mortality rate
+
+* regression_zcta_mn.csv (869 * 14)
+  - `GEOID` (character): ZCTA Geoid (Zip Code)
+  - `vaccination_rate` (numeric): ZCTA vaccination rate
+  - `civic_opportunity_per_capita` (numeric): Civic Opportunity Index defined in the paper
+  - `d.share` (numeric): Democratic vote share, 2020 election
+
+* regression_zcta_tx.csv (1855 * 14)
+  - `GEOID` (character): ZCTA Geoid (Zip Code)
+  - `vaccination_rate` (numeric): ZCTA vaccination rate
+  - `civic_opportunity_per_capita` (numeric): Civic Opportunity Index defined in the paper
+  - `d.share` (numeric): Democratic vote share, 2020 election
+
+* regression_zcta_ny.csv (1793 * 14)
+  - `GEOID` (character): ZCTA Geoid (Zip Code)
+  - `vaccination_rate` (numeric): ZCTA vaccination rate
+  - `civic_opportunity_per_capita` (numeric): Civic Opportunity Index defined in the paper
+  - `d.share` (numeric): Democratic vote share, 2020 election
+
 
 ## Code
 
