@@ -1,4 +1,4 @@
-
+$)C
 # import pkgs 
 
 if (!require(pacman)) install.packages("pacman")
@@ -152,6 +152,44 @@ ggsave(here("plots", "figure_s2.pdf"),
        width = 6,
        height = 6,
        device = "pdf")
+
+################################################################################
+# FIGURE 3
+################################################################################
+
+fig2a <- mutual_aid_models$opc_full
+fit.val.fig2a <- fitted(fig2a)
+
+fig2b <- mutual_aid_models$kyne_full
+fit.val.fig2b <- fitted(fig2b)
+
+fig2c <- mutual_aid_models$chetty_full
+fit.val.fig2c <- fitted(fig2c)
+
+fig2d <- mutual_aid_models$penn_full
+fit.val.fig2d <- fitted(fig2d)
+
+fig2.plot.data <- tt %>% filter(!is.na(opc),!is.na(apc),!is.na(civic_organizations_county),!is.na(socialcap)) %>% mutate(fit.val.fig2a = fit.val.fig2a, fit.val.fig2b = fit.val.fig2b, fit.val.fig2c = fit.val.fig2c, fit.val.fig2d = fit.val.fig2d)
+
+gg.fig2a <- ggplot(fig2.plot.data %>% filter(opc != 0),aes(y=fit.val.fig2a,x=(log(opc)-min(log(opc)))/(max(log(opc)) - min(log(opc))))) + geom_point(aes(size=log(TotalPopEst2019), alpha=0.7), show.legend=FALSE) + theme_bw() + theme(axis.title.y=element_text(size=18), axis.title.x=element_text(size=18), axis.text.y = element_text(size=16), axis.text.x = element_text(size=16)) + xlab("Civic Opportunities Per Capita") + ylab("Presence of Covid Mutual Aid") + geom_smooth(method="lm")
+
+gg.fig2b <- ggplot(fig2.plot.data,aes(y=fit.val.fig2b,x=(log(socialcap)-min(log(socialcap)))/(max(log(socialcap))-min(log(socialcap))))) + geom_point(aes(size=log(TotalPopEst2019), alpha=0.7), show.legend=FALSE) + theme_bw() + theme(axis.title.y=element_text(size=18), axis.title.x=element_text(size=18), axis.text.y = element_text(size=16), axis.text.x = element_text(size=16)) + xlab("Social Capital (Kyne and Aldrich)") + ylab("Presence of Covid Mutual Aid") + geom_smooth(method="lm")
+
+gg.fig2c <- ggplot(fig2.plot.data,aes(y=fit.val.fig2c,x=(log(civic_organizations_county)-min(log(civic_organizations_county)))/(max(log(civic_organizations_county))-min(log(civic_organizations_county))) )) + geom_point(aes(size=log(TotalPopEst2019), alpha=0.7), show.legend=FALSE) + theme_bw() + theme(axis.title.y=element_text(size=18), axis.title.x=element_text(size=18), axis.text.y = element_text(size=16), axis.text.x = element_text(size=16)) + xlab("'Public Goods' Organizations (Chetty, et al.)") + ylab("Presence of Covid Mutual Aid") + geom_smooth(method="lm")
+
+gg.fig2d <- ggplot(fig2.plot.data,aes(y=fit.val.fig2d,x=(log(sk2014+4)-min(log(sk2014+4)))/(max(log(sk2014+4))-min(log(sk2014+4))))) + geom_point(aes(size=log(TotalPopEst2019), alpha=0.7), show.legend=FALSE) + theme_bw() + theme(axis.title.y=element_text(size=18), axis.title.x=element_text(size=18), axis.text.y = element_text(size=16), axis.text.x = element_text(size=16)) + xlab("Social Capital (Rupasingha, et al.)") + ylab("Presence of Covid Mutual Aid)") + geom_smooth(method="lm")
+
+(gg.fig2a + gg.fig2b)/(gg.fig2c + gg.fig2d) + plot_annotation(tag_levels = 'A')
+
+# Save the plots as images
+ggsave(here("outputs", "figure3.png"), combined_plots, width = 14, height = 14)
+
+# for publication 
+ggsave(here("plots", "figure3.pdf"), 
+       width = 14,
+       height = 14,
+       device = "pdf")
+
 
 ################################################################################
 # FIGURE 2
