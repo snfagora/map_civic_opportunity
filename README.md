@@ -61,7 +61,7 @@ All replication data are available at https://dataverse.harvard.edu/dataset.xhtm
 * la_zip_shp.shp: [LA TIGER/Line shapefile (2018)](https://catalog.data.gov/dataset/tiger-line-shapefile-2018-county-los-angeles-county-ca-all-roads-county-based-shapefile)
 
 * la_zcta_opc.csv (300 * 2) 
-  - `ZCTA` (character): 5 digit ZIPCODE
+  - `ZCTA` (character): 5 digit Zip Code
   - `opc_tile` (numeric): Civic opportunity ranks (1-5)
 
 * matched_mma_wa.csv (5,853 * 5)
