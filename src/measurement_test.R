@@ -56,6 +56,8 @@ sd(unit_cor_df[, 5] %>% unlist()) # sd principal component first factor index
 
 options(scipen = 999) 
 
+## Pearson 
+
 ### Kyne and Aldrich 
 cor.test(dd$opc, dd$socialcap) %>%
   tidy()
@@ -66,6 +68,14 @@ cor.test(dd$opc, dd$sk2014) %>%
 
 ### Chetty et al 
 cor.test(dd$opc, dd$civic_organizations_county) %>%
+  tidy()
+
+### Kyne and Aldrich 
+cor.test(dd$opc, dd$socialcap) %>%
+  tidy()
+
+### Rupasingha 
+cor.test(dd$opc, dd$sk2014) %>%
   tidy()
 
 cor.test(dd$opc, dd$civic_organizations_county)

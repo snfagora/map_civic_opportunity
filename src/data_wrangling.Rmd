@@ -246,6 +246,10 @@ unit_cor_df <- org_activities_mbf %>%
     "Principal component first factor index"
   ))
 
+unit_cor_df
+```
+
+```{r}
 # for publication 
 write_csv(unit_cor_df, here("data_outputs", "unit_cor_df.csv"))
 ```
@@ -262,34 +266,14 @@ county_class <- county_class %>%
     is.na(RuralUrbanContinuumCode2013) ~ NA
   )) %>%
   mutate(urban_suburban_rural = factor(urban_suburban_rural, levels = c("Urban", "Suburban", "Rural", NA)))
-```
 
-```{r}
 # prep for joining
 ka_sc$fips_n <-
   formatC(ka_sc$fips_n, width = 5, format = "d", flag = "0")
 
 names(ka_sc)[1] <- "FIPS"
 
-#
-# cnts_counts <- select(org_activities_mbf, ZCTA, opp_mean) %>%
-#  left_join(zcta_fips %>% select(ZCTA, FIPS)) %>%
-#  select(-ZCTA) %>%
-#  filter(!is.na(FIPS)) %>%
-#  group_by(FIPS) %>%
-#  summarize(n = n(),
-#            mean_sum = sum(opp_mean))
-
-# This does three things
-# 1. It filters out organizations that only have a PO Box. Those are true organizations but perhaps not true geolocations
-# 2. It combines organizations have have the same IRS group value in the same geography
-# 3. It uses the FIPS derived from the latitude and longitude
-```
-
-```{r}
 cnts_counts <- org_activities_mbf %>%
-  # left_join(zcta_fips %>% select(ZCTA, FIPS)) %>%
-  # select(-ZCTA) %>%
   rename(FIPS = fips) %>%
   group_by(FIPS, grouping_value) %>%
   summarise(m = max(opp_mean, na.rm = T)) %>%
