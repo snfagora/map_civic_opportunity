@@ -28,7 +28,7 @@ Authors: Milan de Vries, Jae Yeon Kim, and Hahrie Han (2023)
 
 - [Schlozman et al (2014) (Washington Representative Study)](https://www.icpsr.umich.edu/web/ICPSR/studies/35309/publications)
 
-### Replication (processed) data 
+### Replication data 
 
 All replication data are available at https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/TCXRTM 
 
