@@ -11,7 +11,9 @@ desc_files
 
 rds_files <- list.files(here("processed_data"))[stringr::str_detect(list.files(here("processed_data")), "rds")]
 
+################################################################################
 # Supplementary Table S9 [Mutual Aid]
+################################################################################
 
 mut.aid <- read_csv(here("processed_data", "regression_mutual_aid.csv"))
 
@@ -62,10 +64,12 @@ modelsummary(mad_models,
              statistic = NULL,
              coef_omit = "Intercept",
              coef_map = mad_cm,
-             output = here("outputs", "s9_reg_mutual_aid_base.docx")
+             output = here("outputs", "supplementary_table_9.docx")
 )
              
-# Supplementary Table S10 [Vaccine Acceptance]          
+################################################################################
+# Supplementary Table S10 [Vaccine Acceptance]  
+################################################################################
 
 vac.hesitancy <- read_csv(here("processed_data", "regression_vaccine_hesitancy.csv"))
 
@@ -108,9 +112,11 @@ modelsummary(vac_hes_models,
              statistic = NULL,
              coef_omit = "Intercept",
              coef_map = vac_hes_cm,
-             output = "s10_reg_vac_hes.docx")
+             output = here("outputs", "supplementary_table_10.docx")
 
-# Supplementary Table S11 [Vaccine Acceptance + Misinformation]          
+################################################################################
+# Supplementary Table S11 [Vaccine Acceptance + Misinformation]   
+################################################################################                          
 
 vac_accept_opc_min_misinfo <- lm(vac.acceptance ~ opc + misinfo + dec_gop, data=vac.hesitancy %>% filter(!is.na(vac.hesitancy)))
 vac_accept_soccap_min_misinfo <- lm(vac.acceptance ~ sk2014 + misinfo + dec_gop, data=vac.hesitancy %>% filter(!is.na(vac.hesitancy)))
@@ -151,10 +157,11 @@ modelsummary(vac_hes_misinfo_models,
              statistic = NULL,
              coef_omit = "Intercept",
              coef_map = vac_hes_misinfo_cm,
-             output = "s11_reg_vac_hes_misinfo.docx")
+             output = here("outputs", "supplementary_table_11.docx")
 
-
-# Supplementary Table S12 [Vaccine Uptake]          
+################################################################################
+# Supplementary Table S12 [Vaccine Uptake]
+################################################################################
 
 vac.hesitancy <- read_csv(here("processed_data", "regression_vaccine_uptake.csv"))
 
@@ -196,9 +203,11 @@ modelsummary(vac_uptake_models,
              statistic = NULL,
              coef_omit = "Intercept",
              coef_map = vac_uptake_cm,
-             output = "s12_reg_vac_uptake.docx")
+             output = here("outputs", "supplementary_table_12.docx")
 
-# Supplementary Table S14 [Vaccine Uptake - ZCTA]          
+################################################################################
+# Supplementary Table S14 [Vaccine Uptake - ZCTA] 
+################################################################################
 
 df_mn <- read_csv(here("processed_data", "regression_zcta_mn.csv"))
 df_tx <- read_csv(here("processed_data", "regression_zcta_mn.csv"))
@@ -237,4 +246,4 @@ modelsummary(zcta_uptake_models,
              statistic = NULL,
              coef_omit = "Intercept",
              coef_map = zcta_uptake_cm,
-             output = "s14_reg_zcta_uptake.docx")
+             output = "here("outputs", "supplementary_table_14.docx")
