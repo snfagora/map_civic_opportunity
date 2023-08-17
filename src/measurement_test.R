@@ -154,55 +154,6 @@ ggsave(here("plots", "figure_s2.pdf"),
        device = "pdf")
 
 ################################################################################
-# FIGURE 1
-################################################################################
-
-sj <- tigris::counties(cb = TRUE) %>%
-  mutate(id = row_number())
-
-sj <- sj %>%
-  filter(!(STATEFP %in% c("02", "15", "60", "66", "69", "72", "78"))) # Sorry Alaska, Hawaii, and US Territories
-
-sj_state <- tigris::states(cb = TRUE) %>%
-  filter(!(STATEFP %in% c("02", "15", "60", "66", "69", "72", "78"))) # Sorry Alaska, Hawaii, and US Territories
-
-# Define the color palette
-my_palette <- RColorBrewer::brewer.pal(5, "Greens")
-
-national_map <- ggplot() +
-  geom_sf(data = combined_unique, aes(fill = as.factor(opc_tile), geometry = geometry), color = "white", size = 0.2) +
-  scale_fill_manual(labels = c(1:5, "No Data"), values = my_palette) +
-  geom_sf(data = sj, aes(geometry = geometry), fill = "transparent", color = gray(0.8), inherit.aes = FALSE) +
-  geom_sf(data = sj_state, aes(geometry = geometry), fill = "transparent", color = "black", inherit.aes = FALSE) +
-  theme_bw() +
-  theme(legend.position = "bottom", axis.line = element_blank(), axis.text.x = element_blank(), axis.text.y = element_blank(), axis.ticks = element_blank(), axis.title.x = element_blank(), axis.title.y = element_blank()) +
-  labs(fill = "Civic opportuntiy index")
-
-la_map_cnts <- merge(la_zcta_cnts, la_zip_shp) 
-
-# Skip the islands in the LA map
-la_map_cnts <- la_map_cnts %>%
-  filter(!(ZCTA %in% c("90704", "90731")))
-
-la_map <- ggplot() +
-  geom_sf(data = la_map_cnts, aes(fill = as.factor(opc_tile), geometry = geometry), color = "white", size = 0.2) +
-  scale_fill_manual(labels = c(1:5, "No Data"), values = my_palette) +
-  geom_sf(data = la_zip_shp, aes(geometry = geometry), fill = "transparent", color = gray(0.8), inherit.aes = FALSE) +
-  theme_bw() +
-  theme(legend.position = "bottom", axis.line = element_blank(), axis.text.x = element_blank(), axis.text.y = element_blank(), axis.ticks = element_blank(), axis.title.x = element_blank(), axis.title.y = element_blank()) +
-  labs(fill = "Civic opportuntiy index")
-
-national_map + la_map + plot_annotation(tag_levels = "A") + plot_layout(guides = "collect")
-
-ggsave(file = here("outputs", "us_map.png"), width = 10, height = 7)
-
-# for publication 
-ggsave(here("plots", "figure1.pdf"), 
-       width = 10,
-       height = 7,
-       device = "pdf")
-
-################################################################################
 # FIGURE 3
 ################################################################################
 
