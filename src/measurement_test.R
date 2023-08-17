@@ -45,7 +45,7 @@ combined_unique <- read_rds(here("data_outputs", "county_opc.rds"))
 la_zip_shp <- st_read(here("data_outputs", "la_zip_shp.shp"))
 la_zcta_opc <- read_csv(here("data_outputs", "la_zcta_opc.csv"))
 
-# ad hoc data analysis
+# ad-hoc data analysis
 
 sd(unit_cor_df[, 2] %>% unlist()) # sd binary index
 sd(unit_cor_df[, 3] %>% unlist()) # sd mean index

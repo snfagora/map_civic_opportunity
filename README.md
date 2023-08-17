@@ -30,19 +30,39 @@ Authors: Milan de Vries, Jae Yeon Kim, and Hahrie Han (2023)
 
 ### Replication (processed) data 
 
-All replication data are available at: tk 
+All replication data are available at https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/TCXRTM 
 
-* mma_sc_demo.csv
+* mma_sc_demo.csv (3127 * 8)
+  - `FIPS` (character): County FIPS code
+  - `opc` (numeric): Civic opportunity scores per capita
+  - `socialcap` (numeric): Social capital measure from Kyne & Aldrich
+  - `sk2014` (numeric): Social capital measure from Rupasingha, et al. 
+  - `civicorganization_county` (numeric): Civic organization measure from Chetty, et al.
+  - `race_per_white_nonhispaic` (numeric): The proportion of non-white Hispanic populations in counties 
+  - `per_poverty` (numeric): The proportion of people below the federal poverty line in counties 
+  - `college_educ` (numeric): The proportion of college educated people in counties 
 
-* unit_cor_df.csv
+* unit_cor_df.csv (4 * 5)
+  - `term` (character): Civic opportunity dimensions (i.e., "Taking action," "Volunteering," "Membership," "Holding events")
+  - `Binary index` (numeric): Binary index civic opportunity scores 
+  - `Mean index` (numeric): Mean index civic opportunity scores 
+  - `Inverse covariance matrix index` (numeric): Inverse covariance matrix index civic opportunity scores 
+  - `Principal component first factor index` (numeric): PCA first factor index civic opportunity scores 
+  
+* map_trade_off.csv (51 * 3)
+  - `State` (character): U.S. States 
+  - `pct_higher_cnts` (numeric): The proportion of high civic opportunity counties in states 
+  - `pct_lower_cnts` (numeric): The proportion of lower civic opportunity counties in states 
 
-* map_trade_off.csv
+* county_opc.rds (3108 * 16)
+  - `opc_tile` (numeric): Civic opportunity ranks (1-5)
+  - The remaining columns are from the US shapefile, which is based on the [tigris package](https://cran.r-project.org/web/packages/tigris/index.html) in R (ver 2.03).
 
-* county_opc.rds
+* la_zip_shp.shp: [LA TIGER/Line shapefile (2018)](https://catalog.data.gov/dataset/tiger-line-shapefile-2018-county-los-angeles-county-ca-all-roads-county-based-shapefile)
 
-* la_zip_shp.shp
-
-* la_zcta_opc.csv
+* la_zcta_opc.csv (300 * 2) 
+  - `ZCTA` (character): 5 digit ZIPCODE
+  - `opc_tile` (numeric): Civic opportunity ranks (1-5)
 
 * matched_mma_wa.csv (5,853 * 5)
   - `ein` (numeric): Employment Identification Number (IRS-assigned-organization IDs)
@@ -82,43 +102,43 @@ All replication data are available at: tk
   - `FIPS` (character): County FIPS code
   - `has_hubs` (numeric): Presence of COVID-19 mutual aid hubs in the county
   - `hubs` (numeric): Number of COVID-19 mutual aid hubs in the county
-  - `civic_opportunity_per_capita` (numeric): Civic Opportunity Index defined in the paper
-  - `socialcap` (numeric): From Kyne & Aldrich
-  - `civic_organizations_county` (numeric): From Chetty, et al.
-  - `sk2014` (numeric): From Rupasingha, et al. 
+  - `civic_opportunity_per_capita` (numeric): Civic opportunity scores per capita
+  - `socialcap` (numeric): Social capital measure from Kyne & Aldrich
+  - `civic_organizations_county` (numeric): Civic organization measure from Chetty, et al.
+  - `sk2014` (numeric): Social capital measure from Rupasingha, et al. 
 
 * regression_vaccine_hesitancy.csv (3107 * 16)
   - `FIPS` (character): County FIPS code
   - `vac.acceptance` (numeric): County vaccine acceptance rate. See Pierri, et al.
-  - `civic_opportunity_per_capita` (numeric): Civic Opportunity Index defined in the paper
-  - `sk2014` (numeric): From Rupasingha, et al. 
+  - `civic_opportunity_per_capita` (numeric): Civic opportunity scores per capita
+  - `sk2014` (numeric): Social capital measure from Rupasingha, et al. 
   - `misinfo` (numeric): COVID-19 misinformation. See Pierri, et al.
   - `covidmortality` (numeric): County-level COVID-19 mortality rate
 
 * regression_vaccine_uptake.csv (3107 * 16)
   - `FIPS` (character): County FIPS code
   - `vpt.all` (numeric): County vaccine uptake rate as defined by the CDC
-  - `civic_opportunity_per_capita` (numeric): Civic Opportunity Index defined in the paper
-  - `sk2014` (numeric): From Rupasingha, et al. 
-  - `Recip_State` (numeric): U.S. State
+  - `civic_opportunity_per_capita` (numeric): Civic opportunity scores per capita
+  - `sk2014` (numeric): Social capital measure from Rupasingha, et al. 
+  - `Recip_State` (numeric): U.S. States
   - `covidmortality` (numeric): County-level COVID-19 mortality rate
 
 * regression_zcta_mn.csv (869 * 14)
   - `GEOID` (character): ZCTA Geoid (Zip Code)
   - `vaccination_rate` (numeric): ZCTA vaccination rate
-  - `civic_opportunity_per_capita` (numeric): Civic Opportunity Index defined in the paper
+  - `civic_opportunity_per_capita` (numeric): Civic opportunity scores per capita
   - `d.share` (numeric): Democratic vote share, 2020 election
 
 * regression_zcta_tx.csv (1855 * 14)
   - `GEOID` (character): ZCTA Geoid (Zip Code)
   - `vaccination_rate` (numeric): ZCTA vaccination rate
-  - `civic_opportunity_per_capita` (numeric): Civic Opportunity Index defined in the paper
+  - `civic_opportunity_per_capita` (numeric): Civic opportunity scores per capita
   - `d.share` (numeric): Democratic vote share, 2020 election
 
 * regression_zcta_ny.csv (1793 * 14)
   - `GEOID` (character): ZCTA Geoid (Zip Code)
   - `vaccination_rate` (numeric): ZCTA vaccination rate
-  - `civic_opportunity_per_capita` (numeric): Civic Opportunity Index defined in the paper
+  - `civic_opportunity_per_capita` (numeric): Civic opportunity scores per capita
   - `d.share` (numeric): Democratic vote share, 2020 election
 
 ## Code
