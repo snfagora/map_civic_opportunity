@@ -272,12 +272,32 @@ ka_sc$fips_n <-
   formatC(ka_sc$fips_n, width = 5, format = "d", flag = "0")
 
 names(ka_sc)[1] <- "FIPS"
+```
 
+```{r}
 cnts_counts <- org_activities_mbf %>%
   rename(FIPS = fips) %>%
   group_by(FIPS, grouping_value) %>%
   summarise(m = max(opp_mean, na.rm = T)) %>%
   group_by(FIPS) %>%
+  summarise(
+    n = n(),
+    mean_sum = sum(m)
+  )
+
+zcta_counts <- org_activities_mbf %>%
+  group_by(ZCTA, grouping_value) %>%
+  summarise(m = max(opp_mean, na.rm = T)) %>%
+  group_by(ZCTA) %>%
+  summarise(
+    n = n(),
+    mean_sum = sum(m)
+  )
+
+city_counts <- org_activities_mbf %>%
+  group_by(state, city, grouping_value) %>%
+  summarise(m = max(opp_mean, na.rm = T)) %>%
+  group_by(state, city) %>%
   summarise(
     n = n(),
     mean_sum = sum(m)
