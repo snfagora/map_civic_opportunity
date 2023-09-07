@@ -14,7 +14,9 @@ pacman::p_load(
   usdata,
   ggrepel,
   patchwork,
-  glue
+  glue,
+  vroom,
+  scales
   )
 
 custom_theme <- function(size = 13) {
@@ -302,3 +304,27 @@ ggsave(here("plots", "figure1.pdf"),
        width = 10,
        height = 7,
        device = "pdf")
+
+################## Mutual aids map ##################
+
+mutual_aids <- read_csv(here("processed_data", "regression_mutual_aid.csv"))
+
+ma_geo <- mutual_aids %>%
+  left_join(sj, by = c("FIPS" = "GEOID"))
+
+mutual_aid_map <- ggplot() +
+  geom_sf(data = ma_geo, aes(fill = as.factor(has_hubs), geometry = geometry), color = "white", size = 0.2) +
+  geom_sf(data = sj, aes(geometry = geometry), fill = "transparent", color = gray(0.8), inherit.aes = FALSE) +
+  geom_sf(data = sj_state, aes(geometry = geometry), fill = "transparent", color = "black", inherit.aes = FALSE) +
+  scale_fill_manual(values = c("0" = "white", "1" = "green")) +  # Specify colors for factor levels
+  theme_bw() +
+  theme(legend.position = "bottom",
+        axis.line = element_blank(),
+        axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank()) +
+  labs(fill = "Has COVID-19 Mutual Aid Hubs?")
+
+ggsave(here("outputs", "mutual_aid_map.png"))
