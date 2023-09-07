@@ -155,6 +155,8 @@ ggsave(here("plots", "figure_s2.pdf"),
 # FIGURE 3
 ################################################################################
 
+mutual_aid_models <- read_rds(here("processed_data", "mutual_aid_models.rds"))
+
 fig2a <- mutual_aid_models$opc_full
 fit.val.fig2a <- fitted(fig2a)
 
@@ -167,7 +169,9 @@ fit.val.fig2c <- fitted(fig2c)
 fig2d <- mutual_aid_models$penn_full
 fit.val.fig2d <- fitted(fig2d)
 
-fig2.plot.data <- tt %>% filter(!is.na(opc),!is.na(apc),!is.na(civic_organizations_county),!is.na(socialcap)) %>% mutate(fit.val.fig2a = fit.val.fig2a, fit.val.fig2b = fit.val.fig2b, fit.val.fig2c = fit.val.fig2c, fit.val.fig2d = fit.val.fig2d)
+fig2.plot.data <- tt %>% 
+  filter(!is.na(opc),!is.na(apc),!is.na(civic_organizations_county),!is.na(socialcap)) %>% 
+  mutate(fit.val.fig2a = fit.val.fig2a, fit.val.fig2b = fit.val.fig2b, fit.val.fig2c = fit.val.fig2c, fit.val.fig2d = fit.val.fig2d)
 
 gg.fig2a <- ggplot(fig2.plot.data %>% filter(opc != 0),aes(y=fit.val.fig2a,x=(log(opc)-min(log(opc)))/(max(log(opc)) - min(log(opc))))) + geom_point(aes(size=log(TotalPopEst2019), alpha=0.7), show.legend=FALSE) + theme_bw() + theme(axis.title.y=element_text(size=18), axis.title.x=element_text(size=18), axis.text.y = element_text(size=16), axis.text.x = element_text(size=16)) + xlab("Civic Opportunities Per Capita") + ylab("Presence of Covid Mutual Aid") + geom_smooth(method="lm")
 
@@ -212,6 +216,26 @@ pred_plot <- function(var, x_label) {
     ylim(c(0, 5)) 
 }
 
+mods <- list(
+  "DV: Civic opportunity" = lm(opc ~ per_poverty, data = dd), 
+  "DV: Civic opportunity" = lm(opc ~ college_educ, data = dd),
+  "DV: Civic opportunity" = lm(opc ~ race_per_white_nonhispanic, data = dd)
+  )
+
+mod_cm <- c(
+  "per_poverty" = "Federal poverty level (%)",
+  "college_educ" = "College educated (%)",
+  "race_per_white_nonhispanic" = "White Non-hispanic (%)"
+)
+  
+modelsummary(mods, 
+             estimate = c("{estimate}{stars} \n [{conf.low}, {conf.high}] \n p = {p.value}"),
+             statistic = NULL,
+             coef_omit = "Intercept",
+             coef_map = mod_cm,
+             output = here("tables", "additional_table.docx")
+             )
+             
 combined_plots <- wrap_plots(pred_plot(dd$per_poverty, "Federal poverty level"),
                              pred_plot(dd$college_educ, "College educated"),
                              pred_plot(dd$race_per_white_nonhispanic, "Non-Hispanic white"),
