@@ -327,4 +327,6 @@ mutual_aid_map <- ggplot() +
         axis.title.y = element_blank()) +
   labs(fill = "Has COVID-19 Mutual Aid Hubs?")
 
+mutual_aid_map
+
 ggsave(here("outputs", "mutual_aid_map.png"))
