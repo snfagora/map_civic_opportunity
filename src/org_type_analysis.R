@@ -143,7 +143,7 @@ ggsave(here("outputs", "alluvial.png"), height = 8, width = 8)
 
 # for publication
 
-civic_flow_plot + cross_sec_plot + plot_annotation(tag_levels = "A")
+civic_flow_plot + cross_sec_plot + plot_annotation(tag_levels = "a")
 
 ggsave(here("outputs", "cross_flow.png"),
        height = 7, width = 10)

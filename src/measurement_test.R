@@ -11,7 +11,10 @@ pacman::p_load(
   tigris,
   tmap,
   RColorBrewer,
-  usdata
+  usdata,
+  ggrepel,
+  patchwork,
+  glue
   )
 
 custom_theme <- function(size = 13) {
@@ -59,24 +62,19 @@ options(scipen = 999)
 ## Pearson 
 
 ### Kyne and Aldrich 
-cor.test(dd$opc, dd$socialcap) %>%
-  tidy()
+cor.test(dd$opc, dd$socialcap) 
 
 ### Rupasingha 
-cor.test(dd$opc, dd$sk2014) %>%
-  tidy()
+cor.test(dd$opc, dd$sk2014) 
 
 ### Chetty et al 
-cor.test(dd$opc, dd$civic_organizations_county) %>%
-  tidy()
+cor.test(dd$opc, dd$civic_organizations_county)
 
 ### Kyne and Aldrich 
-cor.test(dd$opc, dd$socialcap) %>%
-  tidy()
+cor.test(dd$opc, dd$socialcap) 
 
 ### Rupasingha 
-cor.test(dd$opc, dd$sk2014) %>%
-  tidy()
+cor.test(dd$opc, dd$sk2014) 
 
 cor.test(dd$opc, dd$civic_organizations_county)
 p.adjust(cor.test(dd$opc, dd$civic_organizations_county)$p.value, n = 3127, method = "bonferroni")
@@ -179,7 +177,7 @@ gg.fig2c <- ggplot(fig2.plot.data,aes(y=fit.val.fig2c,x=(log(civic_organizations
 
 gg.fig2d <- ggplot(fig2.plot.data,aes(y=fit.val.fig2d,x=(log(sk2014+4)-min(log(sk2014+4)))/(max(log(sk2014+4))-min(log(sk2014+4))))) + geom_point(aes(size=log(TotalPopEst2019), alpha=0.7), show.legend=FALSE) + theme_bw() + theme(axis.title.y=element_text(size=18), axis.title.x=element_text(size=18), axis.text.y = element_text(size=16), axis.text.x = element_text(size=16)) + xlab("Social Capital (Rupasingha, et al.)") + ylab("Presence of Covid Mutual Aid)") + geom_smooth(method="lm")
 
-(gg.fig2a + gg.fig2b)/(gg.fig2c + gg.fig2d) + plot_annotation(tag_levels = 'A')
+(gg.fig2a + gg.fig2b)/(gg.fig2c + gg.fig2d) + plot_annotation(tag_levels = 'a')
 
 # Save the plots as images
 ggsave(here("outputs", "figure3.png"), combined_plots, width = 14, height = 14)
@@ -189,7 +187,6 @@ ggsave(here("plots", "figure3.pdf"),
        width = 14,
        height = 14,
        device = "pdf")
-
 
 ################################################################################
 # FIGURE 2
@@ -219,7 +216,7 @@ combined_plots <- wrap_plots(pred_plot(dd$per_poverty, "Federal poverty level"),
                              pred_plot(dd$college_educ, "College educated"),
                              pred_plot(dd$race_per_white_nonhispanic, "Non-Hispanic white"),
                              ncol = 3) +
-  plot_annotation(tag_levels = "A") +
+  plot_annotation(tag_levels = "a") +
   plot_layout(guides = "collect")
 
 combined_plots
@@ -258,7 +255,7 @@ national_map <- ggplot() +
   theme(legend.position = "bottom", axis.line = element_blank(), axis.text.x = element_blank(), axis.text.y = element_blank(), axis.ticks = element_blank(), axis.title.x = element_blank(), axis.title.y = element_blank()) +
   labs(fill = "Civic opportuntiy index")
 
-la_map_cnts <- merge(la_zcta_cnts, la_zip_shp) 
+la_map_cnts <- merge(la_zcta_opc, la_zip_shp) 
 
 # Skip the islands in the LA map
 la_map_cnts <- la_map_cnts %>%
@@ -272,7 +269,7 @@ la_map <- ggplot() +
   theme(legend.position = "bottom", axis.line = element_blank(), axis.text.x = element_blank(), axis.text.y = element_blank(), axis.ticks = element_blank(), axis.title.x = element_blank(), axis.title.y = element_blank()) +
   labs(fill = "Civic opportuntiy index")
 
-national_map + la_map + plot_annotation(tag_levels = "A") + plot_layout(guides = "collect")
+national_map + la_map + plot_annotation(tag_levels = "a") + plot_layout(guides = "collect")
 
 ggsave(file = here("outputs", "us_map.png"), width = 10, height = 7)
 
