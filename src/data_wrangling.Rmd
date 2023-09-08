@@ -35,7 +35,8 @@ pacman::p_load(
   tigris,
   tmap,
   RColorBrewer,
-  usdata
+  usdata,
+  zipcodeR
 )
 
 library("tidylog", warn.conflicts = FALSE)
@@ -294,6 +295,8 @@ zcta_counts <- org_activities_mbf %>%
     mean_sum = sum(m)
   )
 
+write_csv(zcta_counts, here("outputs", "zcta_counts.csv"))
+
 city_counts <- org_activities_mbf %>%
   group_by(state, city, grouping_value) %>%
   summarise(m = max(opp_mean, na.rm = T)) %>%
@@ -302,6 +305,8 @@ city_counts <- org_activities_mbf %>%
     n = n(),
     mean_sum = sum(m)
   )
+
+write_csv(city_counts, here("outputs", "city_counts.csv"))
 ```
 
 ```{r}
@@ -460,14 +465,28 @@ ggsave(here("outputs", "pred_plot.png"), height = 6, width = 6)
 # Civic opportunity and inequality
 
 ```{r}
+dd_fb <- dd
+
+range01 <- function(x){(x-min(x))/(max(x)-min(x))}
+
+dd_fb$sk2014 <- range01(dd_fb$sk2014)
+
+dd_fb <- dd_fb %>%
+  mutate(diff = abs(opc - sk2014))
+```
+
+```{r}
 mod_comp_list <- list(
-  "Civic opportunity" = standardise(lm_robust(opc ~ per_poverty, data = dd)),
-  "Social capital" = standardise(lm_robust(sk2014 ~ per_poverty, data = dd)),
-  "Civic opportunity" = standardise(lm_robust(opc ~ college_educ, data = dd)),
-  "Social capital" = standardise(lm_robust(sk2014 ~ college_educ, data = dd)),
-  "Civic opportunity" = standardise(lm_robust(opc ~ race_per_white_nonhispanic, data = dd)),
-  "Social capital" = standardise(lm_robust(sk2014 ~ race_per_white_nonhispanic, data = dd))
-)
+  "Civic opportunity" = standardise(lm_robust(opc ~ per_poverty, data = dd_fb)),
+  "Rupasingha et al Index" = standardise(lm_robust(sk2014 ~ per_poverty, data = dd_fb)),
+  "Absolute difference between two measures" = standardise(lm_robust(diff ~ per_poverty, data = dd_fb)),
+  "Civic opportunity" = standardise(lm_robust(opc ~ college_educ, data = dd_fb)),
+  "Rupasingha et al Index" = standardise(lm_robust(sk2014 ~ college_educ, data = dd_fb)),
+  "Absolute difference between two measures" = standardise(lm_robust(diff ~ college_educ, data = dd_fb)),
+  "Civic opportunity" = standardise(lm_robust(opc ~ race_per_white_nonhispanic, data = dd_fb)),
+  "Rupasingha et al Index" = standardise(lm_robust(sk2014 ~ race_per_white_nonhispanic, data = dd_fb)),
+  "Absolute difference between two measures" = standardise(lm_robust(diff ~ race_per_white_nonhispanic, data = dd_fb))
+  )
 ```
 
 ```{r}
@@ -480,11 +499,11 @@ modelsummary(mod_comp_list,
   coef_omit = "Intercept",
   coef_map =
     c(
-      "race_per_white_nonhispanic" = "Non-hispanic white",
+      "race_per_white_nonhispanic" = "Non-hispanic White",
       "per_poverty" = "Federal poverty level",
       "college_educ" = "College educated"
     ),
-  output = here("outputs", "reg_two_measures.docx")
+  output = here("tables", "table_s7.docx")
 )
 ```
 
@@ -545,7 +564,9 @@ tmp <- dd %>%
     select(FIPS, lat, lng)) %>%
   filter(!is.na(lng)) %>%
   st_as_sf(coords = c("lng", "lat"), crs = st_crs(sj), agr = "constant")
+```
 
+```{r}
 combined_map <- sj %>% st_join(tmp)
 
 write_rds(combined_map, here("processed_data", "combined_map.rds"))
