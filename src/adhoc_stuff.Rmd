@@ -1,0 +1,244 @@
+---
+title: "Adhoc analysis"
+author: "Jae Yeon Kim"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+# Import pkgs 
+
+```{r}
+if (!require(pacman)) install.packages("pacman")
+
+pacman::p_load(
+  broom, 
+  tidyverse,
+  glue,
+  here,
+  purrr,
+  estimatr,
+  effectsize,
+  sandwich,
+  ggrepel,
+  patchwork,
+  ggpubr, 
+  corrplot,
+  corrr,
+  tidycensus,
+  callr,
+  vroom,
+  naniar,
+  modelsummary,
+  gt,
+  DT,
+  sf,
+  tigris,
+  tmap,
+  RColorBrewer,
+  usdata,
+  zipcodeR
+)
+
+library("tidylog", warn.conflicts = FALSE)
+
+devtools::install_github("graemeblair/stdidx")
+library(stdidx)
+
+options(es.use_symbols = TRUE) # get nice symbols
+
+custom_theme <- function(size = 13) {
+  theme_bw(base_size = size) +
+    theme(
+      aspect.ratio = 1.2,
+      panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(),
+      panel.grid.major.y = element_blank(),
+      panel.grid.minor.y = element_blank(),
+      axis.text.x = element_text(margin = margin(t = 6)),
+      plot.title = element_text(size = 12),
+      plot.subtitle = element_text(size = 10),
+      plot.caption = element_text(colour = "grey50", hjust = 0),
+      legend.position = "bottom"
+    )
+}
+
+ggplot2::theme_set(custom_theme())
+```
+
+# Import data 
+
+```{r}
+# MMA data 
+## master file 
+mbf <- vroom(here("raw_data", "irs_mbf.csv"))
+
+## org activities from the websites and elsewhere 
+org_activities <- vroom(here("raw_data", "irs_org_activities.csv"))
+
+irs_activities <- vroom(here("raw_data","irs_nonweb_activities.csv"))
+
+irs_activities <- irs_activities %>%
+  replace_na(list(volunteer_text = 0, member_text = 0)) # without this, the following mutate won't work
+
+## PO BOX status
+po_status <- read_csv(here("raw_data", "irs_po_status.csv"))
+
+## orgs geolocated to FIPS
+irs_to_fips <- vroom(here("raw_data", "irs_to_fips.csv"))
+
+# Census data 
+
+## County level 
+fips <- read_csv(here("raw_data", "fips_with_population.csv"), col_types = (ZCTA <- "c"))
+
+fips_census_agg <- read_csv(here("raw_data", "census_fips_aggregate.csv"))
+
+county_class <- read_csv(here("raw_data", "County_Classifications.csv"))
+
+# ZCTA-level demographic data
+
+## other demographic data
+zcta_detail <- read_csv(here("raw_data", "census_zcta_detail_data.csv"), col_types = (GEOID <- "c"))
+
+names(county_class)[1] <- "FIPS"
+
+# Spatial data 
+
+zcta_cnts <- read_csv(here("processed_data", "zcta_counts_idx_mean_nonpo.csv"))
+```
+
+# Create a sampling frame
+
+```{r}
+org_activities_combined <- irs_activities %>%
+  left_join(org_activities) %>%
+  mutate(
+    volunteer = ifelse(volunteer_text == 1, 1, volunteer),
+    membership = ifelse(member_text == 1, 1, membership)
+  )
+```
+
+```{r}
+org_activities_mbf <- org_activities_combined %>%
+  left_join(mbf %>% dplyr::select(ein, state, city, zip, irs_group)) %>%
+  mutate(grouping_value = if_else(irs_group != "0000", irs_group, ein)) %>%
+  left_join(po_status) %>%
+  left_join(irs_to_fips)
+```
+
+```{r}
+org_activities_mbf <- org_activities_mbf %>%
+  mutate(extractable = ifelse(!is.na(take_action) | !is.na(volunteer) | !is.na(membership) | !is.na(events) | !is.na(resources) | !is.na(advocacy) | !is.na(services) | !is.na(chapters) | !is.na(board) | !is.na(press) | !is.na(donations), 1, 0)) %>%
+  dplyr::select(ein, state, city, zip, take_action, volunteer, membership, events, extractable, grouping_value, is_po, fips)
+```
+
+```{r}
+org_activities_mbf <- org_activities_mbf %>%
+  # filter(extractable == 1) %>% # this includes both websites and IRS
+  filter(is_po != 1) # PO BOX
+
+org_activities_mbf <- org_activities_mbf %>%
+  replace_na(list(take_action = 0, volunteer = 0, membership = 0, events = 0))
+
+# the first 5 digits
+org_activities_mbf$ZCTA <- substr(org_activities_mbf$zip, 1, 5)
+```
+
+```{r}
+nonweb_eins <- irs_activities %>%
+  rename(
+    volunteer = volunteer_text,
+    membership = member_text
+  ) %>%
+  select(ein, volunteer, membership) %>%
+  # replace_na(list(volunteer = 0, membership = 0)) %>%
+  filter(volunteer == 1 | membership == 1) %>%
+  pull(ein)
+
+org_activities_mbf$nonweb <- org_activities_mbf$ein %in% nonweb_eins
+```
+
+# Construct validity test at the org level
+
+```{r}
+org_activities_mbf <- org_activities_mbf %>%
+  mutate(
+    opp_mean = idx_mean(volunteer, membership, take_action, events)
+  )
+```
+
+# Link org and census data at the county level
+
+```{r}
+# county classification
+county_class <- county_class %>%
+  mutate(urban_suburban_rural = case_when(
+    RuralUrbanContinuumCode2013 %in% c(1, 2, 3) ~ "Urban",
+    RuralUrbanContinuumCode2013 %in% c(4, 5, 6) ~ "Suburban",
+    RuralUrbanContinuumCode2013 %in% c(7, 8, 9) ~ "Rural",
+    is.na(RuralUrbanContinuumCode2013) ~ NA
+  )) %>%
+  mutate(urban_suburban_rural = factor(urban_suburban_rural, levels = c("Urban", "Suburban", "Rural", NA)))
+```
+
+```{r}
+cnts_counts <- org_activities_mbf %>%
+  rename(FIPS = fips) %>%
+  group_by(FIPS, grouping_value) %>%
+  summarise(m = max(opp_mean, na.rm = T)) %>%
+  group_by(FIPS) %>%
+  summarise(
+    n = n(),
+    mean_sum = sum(m)
+  )
+
+zcta_counts <- org_activities_mbf %>%
+  group_by(ZCTA, grouping_value) %>%
+  summarise(m = max(opp_mean, na.rm = T)) %>%
+  group_by(ZCTA) %>%
+  summarise(
+    n = n(),
+    mean_sum = sum(m)
+  )
+```
+
+```{r}
+# join the tables
+dd <- cnts_counts %>%
+  left_join(fips) %>%
+  left_join(fips_census_agg) %>%
+  left_join(county_class)
+
+# create the normalized index
+dd <- dd %>%
+  filter(!is.na(population_total)) %>%
+  mutate(opc = 1000 * mean_sum / population_total) %>%
+  mutate(
+    opc_tile = ntile(opc, 5),
+    opc_rank = percent_rank(opc),
+    opc_cume_dist = cume_dist(opc)
+  ) %>%
+  mutate(
+    all_org = 1000 * n / population_total,
+    all_org_tile = ntile(all_org, 5)
+  )
+
+zcta_detail$ZCTA <- zcta_detail$GEOID
+
+zcta_combined <- zcta_cnts %>%
+  right_join(
+    zcta_detail %>%
+      select(ZCTA, population_total)
+  ) %>%
+  filter(!is.na(population_total)) %>%
+  mutate(opc = 1000 * mean_sum / population_total) %>%
+  mutate(
+    opc_tile = ntile(opc, 5),
+  )
+```
+
+# Descriptive statistics 
+
+```{r}
+
+```
