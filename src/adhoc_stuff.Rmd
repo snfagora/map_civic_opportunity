@@ -101,10 +101,6 @@ county_class <- read_csv(here("raw_data", "County_Classifications.csv"))
 zcta_detail <- read_csv(here("raw_data", "census_zcta_detail_data.csv"), col_types = (GEOID <- "c"))
 
 names(county_class)[1] <- "FIPS"
-
-# Spatial data 
-
-zcta_cnts <- read_csv(here("processed_data", "zcta_counts_idx_mean_nonpo.csv"))
 ```
 
 # Create a sampling frame
@@ -184,21 +180,37 @@ county_class <- county_class %>%
 ```{r}
 cnts_counts <- org_activities_mbf %>%
   rename(FIPS = fips) %>%
-  group_by(FIPS, grouping_value) %>%
-  summarise(m = max(opp_mean, na.rm = T)) %>%
-  group_by(FIPS) %>%
+  group_by(FIPS, grouping_value, state) %>%
+  summarise(m = max(opp_mean, na.rm = T),
+            volunteer_m = max(volunteer, na.rm = T),
+            membership_m = max(membership, na.rm = T),
+            take_action_m = max(take_action, na.rm = T),
+            events_m = max(events, na.rm = T)) %>%
+  group_by(FIPS, state) %>%
   summarise(
     n = n(),
-    mean_sum = sum(m)
+    mean_sum = sum(m),
+    volunteer_sum = sum(volunteer_m), 
+    membership_sum = sum(membership_m), 
+    take_action_sum = sum(take_action_m), 
+    events_sum = sum(events_m)
   )
 
 zcta_counts <- org_activities_mbf %>%
-  group_by(ZCTA, grouping_value) %>%
-  summarise(m = max(opp_mean, na.rm = T)) %>%
-  group_by(ZCTA) %>%
+  group_by(ZCTA, grouping_value, state) %>%
+  summarise(m = max(opp_mean, na.rm = T),
+            volunteer_m = max(volunteer, na.rm = T),
+            membership_m = max(membership, na.rm = T),
+            take_action_m = max(take_action, na.rm = T),
+            events_m = max(events, na.rm = T)) %>%
+  group_by(ZCTA, state) %>%
   summarise(
     n = n(),
-    mean_sum = sum(m)
+    mean_sum = sum(m),
+    volunteer_sum = sum(volunteer_m), 
+    membership_sum = sum(membership_m), 
+    take_action_sum = sum(take_action_m), 
+    events_sum = sum(events_m)
   )
 ```
 
@@ -212,7 +224,12 @@ dd <- cnts_counts %>%
 # create the normalized index
 dd <- dd %>%
   filter(!is.na(population_total)) %>%
-  mutate(opc = 1000 * mean_sum / population_total) %>%
+  group_by(state) %>%  
+  mutate(opc = 1000 * mean_sum / population_total,
+         volunteer_sum = 1000 * volunteer_sum / population_total, 
+         membership_sum = 1000 * membership_sum / population_total, 
+         take_action_sum = 1000 * take_action_sum / population_total, 
+         events_sum = 1000 * events_sum / population_total) %>%
   mutate(
     opc_tile = ntile(opc, 5),
     opc_rank = percent_rank(opc),
@@ -225,20 +242,52 @@ dd <- dd %>%
 
 zcta_detail$ZCTA <- zcta_detail$GEOID
 
-zcta_combined <- zcta_cnts %>%
+zcta_combined <- zcta_counts %>%
+  group_by(state) %>%
   right_join(
     zcta_detail %>%
       select(ZCTA, population_total)
   ) %>%
   filter(!is.na(population_total)) %>%
-  mutate(opc = 1000 * mean_sum / population_total) %>%
+  mutate(opc = 1000 * mean_sum / population_total,
+         volunteer_sum = 1000 * volunteer_sum / population_total, 
+         membership_sum = 1000 * membership_sum / population_total, 
+         take_action_sum = 1000 * take_action_sum / population_total, 
+         events_sum = 1000 * events_sum / population_total) %>%
   mutate(
     opc_tile = ntile(opc, 5),
   )
+
+dd <- dd %>%
+  select(state, FIPS, opc, volunteer_sum, membership_sum, take_action_sum, events_sum)
+
+zcta_combined <- zcta_combined %>%
+  select(state, ZCTA, opc, volunteer_sum, membership_sum, take_action_sum, events_sum)
+
+names(dd) <- c("state", "FIPS", "opc", "volunteer_score", "membership_score", "take_action_score", "hold_events_score")
+
+names(zcta_combined) <- c("state", "ZCTA", "opc", "volunteer_score", "membership_score", "take_action_score", "hold_events_score")
+
+cnty_score_cnts <- dd 
+zcta_score_cnts <- zcta_combined
 ```
 
 # Descriptive statistics 
 
 ```{r}
+cnty_score_cnts %>%
+  filter(state %in% c("MI", "GA")) %>%
+  write_csv(here("outputs", "cnty_score_cnts.csv"))
 
+zcta_score_cnts %>%
+  filter(state %in% c("MI", "GA")) %>%
+  write_csv(here("outputs", "zcta_score_cnts.csv"))
+
+cnty_score_cnts %>%
+  filter(state %in% c("MI", "GA")) %>% 
+  nrow() # 243
+
+zcta_score_cnts %>%
+  filter(state %in% c("MI", "GA")) %>%
+  nrow() #1.589
 ```
